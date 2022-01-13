@@ -1,8 +1,16 @@
 import torch
 import itertools
 from util.image_pool import ImagePool
+from util.hsic import normalized_HSIC
 from .base_model import BaseModel
 from . import networks
+from discord_webhook import DiscordWebhook
+import json
+#  helper : discord message sender
+def sendmessage(content, url='https://discord.com/api/webhooks/930678083072168057/VPZo5FAPnkrg5sVq5as8PRXWlb1stPSj5pQjbDWRpDaRxc1EnnacvVDgTYJRW0JniGuo'):
+    webhook = DiscordWebhook(url=url, content=content)
+    response = webhook.execute()
+
 
 
 class CycleGANModel(BaseModel):
@@ -40,6 +48,8 @@ class CycleGANModel(BaseModel):
         if is_train:
             parser.add_argument('--lambda_A', type=float, default=10.0, help='weight for cycle loss (A -> B -> A)')
             parser.add_argument('--lambda_B', type=float, default=10.0, help='weight for cycle loss (B -> A -> B)')
+            parser.add_argument('--lambda_C', type=float, default=1.0, help='weight for negative HSIC (same for forward/backward both directions), default is 1.0')
+
             parser.add_argument('--lambda_identity', type=float, default=0.5, help='use identity mapping. Setting lambda_identity other than 0 has an effect of scaling the weight of the identity mapping loss. For example, if the weight of the identity loss should be 10 times smaller than the weight of the reconstruction loss, please set lambda_identity = 0.1')
 
         return parser
@@ -153,6 +163,7 @@ class CycleGANModel(BaseModel):
         lambda_idt = self.opt.lambda_identity
         lambda_A = self.opt.lambda_A
         lambda_B = self.opt.lambda_B
+        lambda_C = self.opt.lambda_C
         # Identity loss
         if lambda_idt > 0:
             # G_A should be identity if real_B is fed: ||G_A(B) - B||
@@ -173,8 +184,16 @@ class CycleGANModel(BaseModel):
         self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
         # Backward cycle loss || G_A(G_B(B)) - B||
         self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
+
+        
+        # Forward negative normalized HSIC
+        self.neg_norm_HSIC_B = normalized_HSIC(self.real_A, self.fake_B) * lambda_C
+        print(self.neg_norm_HSIC_B.shape, "self. neg_norm_HSIC   shape")
+        # Backward negative normalized HSIC
+        #self.neg_norm_HSIC_A = normalized_HSIC(self.real_B, self.fake_A) * lambda_C
+
         # combined loss and calculate gradients
-        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
+        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B # + self.neg_norm_HSIC_A + self.neg_norm_HSIC_B
         self.loss_G.backward()
 
     def optimize_parameters(self):
