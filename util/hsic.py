@@ -59,7 +59,7 @@ def hsic_gam(X, Y, alph = 0.5):
 
 	# ----- width of X -----
 	Xmed = X
-	print(Xmed.shape, "Xmed shape")
+	#print(Xmed.shape, "X shape")
 
 	# print(Xmed*Xmed.shape, "Xmed*Xmed.shape")
 	# print(torch.matmul(Xmed.T,Xmed).shape, "Xmed.T @ Xmed. shape")
@@ -67,12 +67,18 @@ def hsic_gam(X, Y, alph = 0.5):
 
 
 	G = torch.sum(Xmed*Xmed,1).reshape(n,1)
+	#print(G.shape)
 	Q = torch.tile(G, (1, n) )
+	#print(Q.shape)
 	R = torch.tile(G.T, (n, 1) )
+	#print(R.shape)
 
 	dists = Q + R - 2* torch.matmul(Xmed, Xmed.T)
+	#print(dists.shape)
 	dists = dists - torch.tril(dists)
 	dists = dists.reshape(n**2, 1)
+	#print(dists.shape)
+
 
 	width_x = torch.sqrt( 0.5 * torch.median(dists[dists>0]) )
 	# ----- -----
@@ -91,52 +97,41 @@ def hsic_gam(X, Y, alph = 0.5):
 	width_y = torch.sqrt( 0.5 * torch.median(dists[dists>0]) )
 	# ----- -----
 
-	bone = torch.ones((n, 1)).float()
+	bone = torch.ones((n, 1)).to(torch.float)
 	H = torch.eye(n) - (torch.ones((n,n)) / n).float()
 
-	print(H.device, "H.device()") 
 	K = rbf_dot(X, X, width_x)
 	bone = bone.to(K.device)
-	print(K.device, "K.device()") 
+
 	L = rbf_dot(Y, Y, width_y)
 
 	H = H.to(K.device)
 	Kc = torch.matmul(torch.matmul(H, K), H)
 	Lc = torch.matmul(torch.matmul(H, L), H)
 
-	print(H.device, "H.device()") 
 	testStat = torch.sum(Kc.T * Lc) / n
 
-	print(testStat.device, "testStat.device()") 
 	varHSIC = (Kc * Lc / 6)**2
 
-	print(varHSIC.device, "varHSIC.device()") 
 	varHSIC = ( torch.sum(varHSIC) - torch.trace(varHSIC) ) / n / (n-1)
 
-	print(varHSIC.device, "varHSIC.device()") 
 	varHSIC = varHSIC * 72 * (n-4) * (n-5) / n / (n-1) / (n-2) / (n-3)
 
-	print(varHSIC.device, "varHSIC.device()") 
 	K = K - torch.diag(torch.diag(K))
 	L = L - torch.diag(torch.diag(L))
 
-	print(K.device, "K.device()") 
-	print(L.device, "L.device()") 
-	print(bone.T.device, "bone.T.device()") 
-	print(torch.matmul(bone.T, K) , "torch.matmul(bone.T, K).device()") 
 	muX = torch.matmul(torch.matmul(bone.T, K), bone) / n / (n-1)
-	print(muX.device, "muX.device()") 
 	muY = torch.matmul(torch.matmul(bone.T, L), bone) / n / (n-1)
-	print(muY.device, "muY.device()") 
 
-	mHSIC = (1 + muX *                                                                                                                            muY - muX - muY) / n
+	mHSIC = (1 + muX * muY - muX - muY) / n
 
-	al = (mHSIC**2 / varHSIC).cpu()
-	bet = (varHSIC*n / mHSIC).cpu()
+	#al = (mHSIC**2 / varHSIC)
+	#bet = (varHSIC*n / mHSIC)
 
-	thresh = gamma.ppf(1-alph, al, scale=bet)[0][0]
+	#thresh = gamma.ppf(1-alph, al, scale=bet)[0][0]
 
-	return (testStat, thresh)
+
+	return (testStat, 0)
 
 def normalized_HSIC(X, Y, alph = 0.5):
 	HSIC_xx,_ = hsic_gam(X, X)

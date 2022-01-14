@@ -11,7 +11,7 @@ def sendmessage(content, url='https://discord.com/api/webhooks/93067808307216805
     webhook = DiscordWebhook(url=url, content=content)
     response = webhook.execute()
 
-
+torch.cuda.empty_cache()
 
 class CycleGANModel(BaseModel):
     """
@@ -62,7 +62,7 @@ class CycleGANModel(BaseModel):
         """
         BaseModel.__init__(self, opt)
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
-        self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B']
+        self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B', 'HSIC_A', 'HSIC_B']
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         visual_names_A = ['real_A', 'fake_B', 'rec_A']
         visual_names_B = ['real_B', 'fake_A', 'rec_B']
@@ -178,6 +178,9 @@ class CycleGANModel(BaseModel):
 
         # GAN loss D_A(G_A(A))
         self.loss_G_A = self.criterionGAN(self.netD_A(self.fake_B), True)
+        print(self.netD_A(self.fake_B).shape, "self.netD_A(self.fake_B). shape")
+        print(self.loss_G_A, "loss_G_A")
+
         # GAN loss D_B(G_B(B))
         self.loss_G_B = self.criterionGAN(self.netD_B(self.fake_A), True)
         # Forward cycle loss || G_B(G_A(A)) - A||
@@ -187,13 +190,14 @@ class CycleGANModel(BaseModel):
 
         
         # Forward negative normalized HSIC
-        self.neg_norm_HSIC_B = normalized_HSIC(self.real_A, self.fake_B) * lambda_C
-        print(self.neg_norm_HSIC_B.shape, "self. neg_norm_HSIC   shape")
+        self.loss_HSIC_B = -normalized_HSIC(self.real_A, self.fake_B) * lambda_C
+        print(self.loss_HSIC_B.shape, "self. neg_norm_HSIC   shape")
+        print(self.loss_HSIC_B, "HSIC_B")
         # Backward negative normalized HSIC
-        #self.neg_norm_HSIC_A = normalized_HSIC(self.real_B, self.fake_A) * lambda_C
+        self.loss_HSIC_A = -normalized_HSIC(self.real_B, self.fake_A) * lambda_C
 
         # combined loss and calculate gradients
-        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B # + self.neg_norm_HSIC_A + self.neg_norm_HSIC_B
+        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B + self.loss_HSIC_A + self.loss_HSIC_B
         self.loss_G.backward()
 
     def optimize_parameters(self):
