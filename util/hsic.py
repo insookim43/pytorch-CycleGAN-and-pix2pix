@@ -66,7 +66,7 @@ def hsic_gam(X, Y, alph = 0.5):
 	# print(torch.sum(Xmed*Xmed, 1).shape, "np.sum(Xmed*Xmed,1) shape")
 
 
-	G = torch.sum(Xmed*Xmed,1).reshape(n,1)
+	G = torch.sum(Xmed*Xmed,1).reshape(n,1)  #
 	#print(G.shape)
 	Q = torch.tile(G, (1, n) )
 	#print(Q.shape)
