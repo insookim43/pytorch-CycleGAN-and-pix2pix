@@ -405,6 +405,9 @@ class ResnetGenerator(nn.Module):
             model += [nn.Conv2d(ngf * 2, output_nc, kernel_size=7, padding=0)]
             model += [nn.Tanh()]
 
+            self.model = nn.Sequential(*model)
+
+
 
     def forward(self, input):
         """Standard forward"""
