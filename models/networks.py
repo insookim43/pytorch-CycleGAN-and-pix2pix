@@ -343,7 +343,7 @@ class ResnetGenerator(nn.Module):
                  norm_layer(ngf),
                  nn.ReLU(True)]
 
-        if if_forward = True:
+        if if_forward == True:
             n_downsampling = 2
             for i in range(n_downsampling):  # add downsampling layers
                 mult = 2 ** i
