@@ -178,8 +178,6 @@ class CycleGANModel(BaseModel):
 
         # GAN loss D_A(G_A(A))
         self.loss_G_A = self.criterionGAN(self.netD_A(self.fake_B), True)
-        print(self.netD_A(self.fake_B).shape, "self.netD_A(self.fake_B). shape")
-        print(self.loss_G_A, "loss_G_A")
 
         # GAN loss D_B(G_B(B))
         self.loss_G_B = self.criterionGAN(self.netD_B(self.fake_A), True)
@@ -191,8 +189,6 @@ class CycleGANModel(BaseModel):
         
         # Forward negative normalized HSIC
         self.loss_HSIC_B = -normalized_HSIC(self.real_A, self.fake_B) * lambda_C
-        print(self.loss_HSIC_B.shape, "self. neg_norm_HSIC   shape")
-        print(self.loss_HSIC_B, "HSIC_B")
         # Backward negative normalized HSIC
         self.loss_HSIC_A = -normalized_HSIC(self.real_B, self.fake_A) * lambda_C
 

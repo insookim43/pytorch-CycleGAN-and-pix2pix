@@ -133,15 +133,24 @@ class Visualizer():
                 label_html_row = ''
                 images = []
                 idx = 0
+                image_size = []
+                for _, image in visuals.items():
+                    image_numpy = util.tensor2im(image)
+                    if image_numpy.shape[0] not in image_size :
+                        image_size.append(image_numpy.shape[0])
                 for label, image in visuals.items():
                     image_numpy = util.tensor2im(image)
                     label_html_row += '<td>%s</td>' % label
-                    images.append(image_numpy.transpose([2, 0, 1]))
+                    image_numpy_t = image_numpy.transpose([2, 0, 1])
+                    temp_white = np.ones((image_numpy.shape[2], max(image_size), max(image_size) )) * 255
+                    temp_white[:image_numpy_t.shape[0], :image_numpy_t.shape[1], :image_numpy_t.shape[2]] = image_numpy_t
+
+                    images.append(temp_white)
                     idx += 1
                     if idx % ncols == 0:
                         label_html += '<tr>%s</tr>' % label_html_row
                         label_html_row = ''
-                white_image = np.ones_like(image_numpy.transpose([2, 0, 1])) * 255
+                white_image = np.ones((image_numpy.shape[2], max(image_size), max(image_size) )) * 255
                 while idx % ncols != 0:
                     images.append(white_image)
                     label_html_row += '<td></td>'
