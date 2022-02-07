@@ -116,7 +116,7 @@ def init_net(net, init_type='normal', init_gain=0.02, gpu_ids=[]):
     return net
 
 
-def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, init_type='normal', init_gain=0.02, gpu_ids=[]):
+def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, init_type='normal', init_gain=0.02, gpu_ids=[], if_forward=None):
     """Create a generator
 
     Parameters:
@@ -147,9 +147,9 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
     norm_layer = get_norm_layer(norm_type=norm)
 
     if netG == 'resnet_9blocks':
-        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9)
+        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9, if_forward=if_forward)
     elif netG == 'resnet_6blocks':
-        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6)
+        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6, if_forward=if_forward)
     elif netG == 'unet_128':
         net = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     elif netG == 'unet_256':
@@ -318,7 +318,7 @@ class ResnetGenerator(nn.Module):
     We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
     """
 
-    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, padding_type='reflect'):
+    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, padding_type='reflect', if_forward=True):
         """Construct a Resnet-based generator
 
         Parameters:
@@ -329,6 +329,7 @@ class ResnetGenerator(nn.Module):
             use_dropout (bool)  -- if use dropout layers
             n_blocks (int)      -- the number of ResNet blocks
             padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
+            if_forward(bool)    -- CIFAR>ImageNet, True if forward(cifar>ImageNet), else False
         """
         assert(n_blocks >= 0)
         super(ResnetGenerator, self).__init__()
@@ -342,39 +343,68 @@ class ResnetGenerator(nn.Module):
                  norm_layer(ngf),
                  nn.ReLU(True)]
 
-        n_downsampling = 2
-        for i in range(n_downsampling):  # add downsampling layers
-            mult = 2 ** i
-            model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=1, padding=0, bias=use_bias),
-                      norm_layer(ngf * mult * 2),
-                      nn.ReLU(True)]
+        if if_forward = True:
+            n_downsampling = 2
+            for i in range(n_downsampling):  # add downsampling layers
+                mult = 2 ** i
+                model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=1, padding=0, bias=use_bias),
+                          norm_layer(ngf * mult * 2),
+                          nn.ReLU(True)]
 
-        mult = 2 ** n_downsampling
-        for i in range(n_blocks):       # add ResNet blocks
+            mult = 2 ** n_downsampling
+            for i in range(n_blocks):       # add ResNet blocks
 
-            model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
+                model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
 
-        for i in range(n_downsampling):  # add upsampling layers
-            mult = 2 ** (n_downsampling - i)
-            model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
-                                         kernel_size=3, stride=2,
-                                         padding=1, output_padding=0,
-                                         bias=use_bias),
-                      norm_layer(int(ngf * mult / 2)),
-                      nn.ReLU(True)]
+            for i in range(n_downsampling):  # add upsampling layers
+                mult = 2 ** (n_downsampling - i)
+                model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                             kernel_size=3, stride=2,
+                                             padding=1, output_padding=0,
+                                             bias=use_bias),
+                          norm_layer(int(ngf * mult / 2)),
+                          nn.ReLU(True)]
 
-        model += [nn.ConvTranspose2d(ngf,int(ngf  / 2),
-                                         kernel_size=3, stride=2,
-                                         padding=1, output_padding=1,
-                                         bias=use_bias),
-                      norm_layer(int(ngf / 2)),
-                      nn.ReLU(True)]
+            model += [nn.ConvTranspose2d(ngf,int(ngf  / 2),
+                                             kernel_size=3, stride=2,
+                                             padding=1, output_padding=1,
+                                             bias=use_bias),
+                          norm_layer(int(ngf / 2)),
+                          nn.ReLU(True)]
 
-        model += [nn.ReflectionPad2d(3)]
-        model += [nn.Conv2d(int(ngf/2), output_nc, kernel_size=7, padding=0)]
-        model += [nn.Tanh()]
+            model += [nn.ReflectionPad2d(3)]
+            model += [nn.Conv2d(int(ngf/2), output_nc, kernel_size=7, padding=0)]
+            model += [nn.Tanh()]
 
-        self.model = nn.Sequential(*model)
+            self.model = nn.Sequential(*model)
+
+        else :
+            n_downsampling = 3
+            for i in range(n_downsampling):  # add downsampling layers
+                mult = 2 ** i
+                model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=2, bias=use_bias),
+                          norm_layer(ngf * mult * 2),
+                          nn.ReLU(True)]
+
+            mult = 2 ** n_downsampling
+            for i in range(n_blocks):  # add ResNet blocks
+
+                model += [
+                    ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
+                                use_bias=use_bias)]
+
+            for i in range(n_downsampling - 1):  # add upsampling layers
+                mult = 2 ** (n_downsampling - i)
+                model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                             kernel_size=3, stride=1,
+                                             padding=0, output_padding=1,
+                                             bias=use_bias),
+                          norm_layer(int(ngf * mult / 2)),
+                          nn.ReLU(True)]
+            model += [nn.ReflectionPad2d(3)]
+            model += [nn.Conv2d(ngf * 2, output_nc, kernel_size=7, padding=0)]
+            model += [nn.Tanh()]
+
 
     def forward(self, input):
         """Standard forward"""
