@@ -78,20 +78,45 @@ def get_params(opt, size):
     return {'crop_pos': (x, y), 'flip': flip}
 
 
-def get_transform(opt, params=None, grayscale=False, method=Image.BICUBIC, convert=True):
+def get_transform(opt, params=None, grayscale=False, method=Image.BICUBIC, convert=True, domain=None):
+    domain_load_dict = {'CIFAR10':32, 'ImageNet':224}
+    domain_crop_dict = {'CIFAR10':32, 'ImageNet':224}
+
     transform_list = []
     if grayscale:
         transform_list.append(transforms.Grayscale(1))
     if 'resize' in opt.preprocess:
-        osize = [opt.load_size, opt.load_size]
-        transform_list.append(transforms.Resize(osize, method))
+        if domain == 'A':
+            osize = [domain_load_dict[opt.domain_A], domain_load_dict[opt.domain_A]]
+            transform_list.append(transforms.Resize(osize, method))
+        elif domain == 'B':
+            osize = [domain_load_dict[opt.domain_B], domain_load_dict[opt.domain_B]]
+            transform_list.append(transforms.Resize(osize, method))
+        else:
+            osize = [opt.load_size, opt.load_size]
+            transform_list.append(transforms.Resize(osize, method))
+
     elif 'scale_width' in opt.preprocess:
         transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.load_size, opt.crop_size, method)))
 
     if 'crop' in opt.preprocess:
         if params is None:
-            transform_list.append(transforms.RandomCrop(opt.crop_size))
+            if domain == 'A':
+                csize = domain_crop_dict[opt.domain_A]
+                transform_list.append(transforms.RandomCrop(csize))
+            if domain == 'B':
+                csize = domain_crop_dict[opt.domain_B]
+                transform_list.append(transforms.RandomCrop(csize))
+            else :
+                transform_list.append(transforms.RandomCrop(opt.crop_size))
         else:
+            if domain == 'A':
+                csize = domain_crop_dict[opt.domain_A]
+                transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], csize)))
+            if domain == 'B':
+                csize = domain_crop_dict[opt.domain_B]
+                transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], csize)))
+
             transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.crop_size)))
 
     if opt.preprocess == 'none':
