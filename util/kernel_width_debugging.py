@@ -77,8 +77,8 @@ if __name__ == '__main__':
     # max number of images
     n_image = 20000
 
-    dataset_root_dict = {'CIFAR10': "syn_mnt/insoo/datasets/cifar10_imagenet/trainA",
-                         'ImageNet': "syn_mnt/insoo/datasets/cifar10_imagenet/trainB"}
+    dataset_root_dict = {'CIFAR10': "/syn_mnt/insoo/datasets/cifar10_imagenet/trainA",
+                         'ImageNet': "/syn_mnt/insoo/datasets/cifar10_imagenet/trainB"}
 
     dataset_name = 'ImageNet'
     assert dataset_name in dataset_root_dict.keys(), 'dataset name is not correct. choose between "CIFAR10", "ImageNet"'
