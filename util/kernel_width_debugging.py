@@ -91,14 +91,24 @@ if __name__ == '__main__':
     random.shuffle(filenames) # if random shuffle
 
     # load and preporcess
-    transform_train = T.Compose([
-        T.Resize(32),
-        T.PILToTensor(),
-        T.ConvertImageDtype(torch.float),
+    if dataset_name == 'CIFAR10':
+        transform_train = T.Compose([
+            T.Resize(32),
+            T.Normalize([0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616],
+            T.PILToTensor(),
+            T.ConvertImageDtype(torch.float),
 
-    ])
+        ])
+    if dataset_name == 'ImageNet':
+        transform_train = T.Compose([
+            T.Resize(256),
+            T.CenterCrop(224),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            T.ConvertImageDtype(torch.float)
+        ])
 
-    train_dataset = ImageFolder(root=fileroot, transform=transform_train) # 50000
+        train_dataset = ImageFolder(root=fileroot, transform=transform_train) # 50000
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=4)
 
