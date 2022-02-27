@@ -2,7 +2,6 @@ import numpy as np
 import glob
 import time
 import random
-import pickle
 
 import torch
 from torch.utils.data import Dataset
@@ -85,9 +84,9 @@ if __name__ == '__main__':
     fileroot = dataset_root_dict[dataset_name]
     print("fileroot is" , fileroot)
 
-    filenames = glob.glob(fileroot)
-    filenames.sort()
-    random.shuffle(filenames) # if random shuffle
+    # filenames = glob.glob(fileroot)
+    # filenames.sort()
+    # random.shuffle(filenames) # if random shuffle
 
     # load and preporcess
     if dataset_name == 'CIFAR10':
