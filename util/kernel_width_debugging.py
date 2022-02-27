@@ -80,7 +80,7 @@ if __name__ == '__main__':
     dataset_root_dict = {'CIFAR10': "/syn_mnt/insoo/datasets/cifar10_imagenet/trainA",
                          'ImageNet': "/syn_mnt/insoo/datasets/cifar10_imagenet/trainB"}
 
-    dataset_name = 'ImageNet'
+    dataset_name = 'CIFAR10'
     assert dataset_name in dataset_root_dict.keys(), 'dataset name is not correct. choose between "CIFAR10", "ImageNet"'
     fileroot = dataset_root_dict[dataset_name]
     print("fileroot is" , fileroot)
@@ -93,8 +93,8 @@ if __name__ == '__main__':
     if dataset_name == 'CIFAR10':
         transform_train = T.Compose([
             T.Resize(32),
+            T.ToTensor(),
             T.Normalize([0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616]),
-            T.PILToTensor(),
             T.ConvertImageDtype(torch.float)
         ])
     if dataset_name == 'ImageNet':
@@ -106,7 +106,7 @@ if __name__ == '__main__':
             T.ConvertImageDtype(torch.float)
         ])
 
-        train_dataset = ImageFolder(root=fileroot, transform=transform_train) # 50000
+    train_dataset = ImageFolder(root=fileroot, transform=transform_train) # 50000
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=4)
 
