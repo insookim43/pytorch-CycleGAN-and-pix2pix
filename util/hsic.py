@@ -235,7 +235,7 @@ if __name__ == "__main__" :
 
 	# 2d case
 #	X_2d = [[100, -400], [101, -404], [102, -408], [103, -412], [400,-1600]]
-	X_2d = [[1, 1], [2, 2], [3, 3]]
+	X_2d = [[1, 1], [2, 2]]
 
 	torch_X_2d = torch.tensor(X_2d, dtype =torch.float)
 	HSIC_2d, (width_x_2d, width_x_2d_) = normalized_HSIC(torch_X_2d, torch_X_2d, return_width=True, kernel_param_average_method='median')
@@ -292,13 +292,23 @@ if __name__ == "__main__" :
 	cmap = ["Reds", "Blues", "Greens", "Purples", "Oranges"]
 
 	from matplotlib.colors import Normalize
+	from matplotlib.colors import LinearSegmentedColormap
+
+	ncolors = 256
+	color_array = plt.get_cmap('gist_rainbow')(range(ncolors))
+	color_array[:, -1] = np.linspace(0.05, 0.7, ncolors)
+	# create a colormap object
+	map_object = LinearSegmentedColormap.from_list(name='rainbow_alpha', colors=color_array)
+	# register this new colormap with matplotlib
+	plt.register_cmap(cmap=map_object)
+
 	alphas = Normalize(0, .3, clip=True)(np.abs(kernel_Y))
 	alphas = np.clip(alphas, .4, 1)  # alpha value clipped at the bottom at .4
 
 
 	for i, x in enumerate(X_2d) :
-		contour = plt.contour(x[0]+x1x1, x[1]+x2x2, kernel_Y, cmap = "viridis_r", levels=7, alpha=0.6, linewidths=1, vmin=0)
-		contourf = plt.contourf(x[0] + x1x1, x[1] + x2x2, kernel_Y, cmap=cmap[i], levels=levels, alpha=0.5, vmin=0)
+		# contour = plt.contour(x[0]+x1x1, x[1]+x2x2, kernel_Y, cmap = "rainbow_alpha", levels=7, alpha=0.6, linewidths=1, vmin=0)
+		contourf = plt.contourf(x[0] + x1x1, x[1] + x2x2, kernel_Y, cmap="rainbow_alpha", levels=levels, vmin=0)
 		#if i == 0 :
 		#	plt.clabel(contour, inline=True, fontsize=10)
 		plt.title('isotropic kernel')
@@ -316,7 +326,7 @@ if __name__ == "__main__" :
 
 	plt.axis((x1_axis_min, x1_axis_max, x2_axis_min, x2_axis_max))
 	plt.scatter(X_2d[:,0],X_2d[:,1], color='red')
-	plt.colorbar(contour)
+	plt.colorbar(contourf)
 
 	plt.show()
 
