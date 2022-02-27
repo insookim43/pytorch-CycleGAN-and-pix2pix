@@ -78,8 +78,8 @@ if __name__ == '__main__':
     # max number of images
     n_image = 20000
 
-    dataset_root_dict = {'CIFAR10': r"C:\Users\Kim\Desktop\dataset\CIFAR10-ImageNet_codetest_32x32\trainA",
-                         'ImageNet': r"C:\Users\Kim\Desktop\dataset\CIFAR10-ImageNet_codetest_32x32\trainA"}
+    dataset_root_dict = {'CIFAR10': "syn_mnt/insoo/datasets/cifar10_imagenet/trainA",
+                         'ImageNet': "syn_mnt/insoo/datasets/cifar10_imagenet/trainB"}
 
     dataset_name = 'ImageNet'
     assert dataset_name in dataset_root_dict.keys(), 'dataset name is not correct. choose between "CIFAR10", "ImageNet"'
@@ -96,8 +96,7 @@ if __name__ == '__main__':
             T.Resize(32),
             T.Normalize([0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616],
             T.PILToTensor(),
-            T.ConvertImageDtype(torch.float),
-
+            T.ConvertImageDtype(torch.float)
         ])
     if dataset_name == 'ImageNet':
         transform_train = T.Compose([
@@ -153,7 +152,8 @@ if __name__ == '__main__':
             if i % 50 == 1 :
                 print(i, "th : ", lap, " sec")
                 kernel_width = np.mean(total_dist_list)
-                print(kernel_width)
+                kernel_width_median = np.median(total_dist_list)
+                print("mean and median", kernel_width, kernel_width_median)
             if i >= n_image :
                 break
             i += 1
@@ -161,16 +161,17 @@ if __name__ == '__main__':
         # end for
 
         kernel_width = np.mean(total_dist_list)
-        print(kernel_width)
+        kernel_width_median = np.median(total_dist_list)
+        print("kernel_width mean and median", kernel_width, kernel_width_median)
 
-        return kernel_width, total_dist_list
+        return kernel_width, kernel_width_median, total_dist_list
 
 
     # main
 
     filewritetest()
 
-    kernel_width, total_dist_list = calc_distance(train_loader)
+    kernel_width, kernel_width_median, total_dist_list = calc_distance(train_loader)
 
     with open("./dist_list.txt", 'w') as f :
         f.write(str(total_dist_list))
