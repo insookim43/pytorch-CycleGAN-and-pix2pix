@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import glob
 import time
@@ -94,7 +93,7 @@ if __name__ == '__main__':
     if dataset_name == 'CIFAR10':
         transform_train = T.Compose([
             T.Resize(32),
-            T.Normalize([0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616],
+            T.Normalize([0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616]),
             T.PILToTensor(),
             T.ConvertImageDtype(torch.float)
         ])
