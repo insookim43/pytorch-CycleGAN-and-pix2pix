@@ -153,6 +153,37 @@ def hsic_gam(X, Y, alph = 0.5, kernel_param_average_method=None):
 
 	return (testStat, (width_x, width_y))
 
+def hsic_fixed(X, Y, width_x, width_y):
+	"""
+	X, Y are numpy vectors with row - sample, col - dim
+	alph is the significance level
+	auto choose median to be the kernel width
+	"""
+	#print(X.shape, "X.shape")
+	#print(Y.shape, "Y.shape")
+	if type(X) == list :
+		X = torch.unsqueeze(X, 1)
+	if type(Y) == list :
+		Y = torch.unsqueeze(Y, 1)
+	X = torch.reshape(X, (X.shape[0], -1))
+	Y = torch.reshape(Y, (Y.shape[0], -1))
+	n = X.shape[0]
+
+	#print('width_x : ', width_x)
+	#print('width_y : ', width_y)
+
+	H = torch.eye(n) - (torch.ones((n,n)) / n).float()
+	K = rbf_dot(X, X, width_x)
+	L = rbf_dot(Y, Y, width_y)
+
+	H = H.to(K.device)
+	Kc = torch.matmul(torch.matmul(H, K), H)
+	Lc = torch.matmul(torch.matmul(H, L), H)
+
+	testStat = torch.sum(Kc.T * Lc) / n
+
+	return (testStat, (width_x, width_y))
+
 def normalized_HSIC(X, Y, alph = 0.5, return_width=False, kernel_param_average_method='median'):
 	HSIC_xx,_ = hsic_gam(X, X, kernel_param_average_method=kernel_param_average_method)
 	HSIC_yy,_ = hsic_gam(Y, Y, kernel_param_average_method=kernel_param_average_method)
@@ -163,7 +194,7 @@ def normalized_HSIC(X, Y, alph = 0.5, return_width=False, kernel_param_average_m
 		normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy))
 		return normalized_HSIC, (width_x, width_y)
 
-def kernel_matrix_fixed_width(X, width_x = 609.6816):
+def kernel_matrix_fixed_width(X, width_x = None):
 	"""
 	X, Y are numpy vectors with row - sample, col - dim
 	alph is the significance level
@@ -178,6 +209,40 @@ def kernel_matrix_fixed_width(X, width_x = 609.6816):
 	K = rbf_dot(X, X, width_x)
 
 	return K
+
+def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
+	#print(X.shape, "X.shape")
+	#print(Y.shape, "Y.shape")
+	if type(X) == list :
+		X = torch.unsqueeze(X, 1)
+	if type(Y) == list :
+		Y = torch.unsqueeze(Y, 1)
+	X = torch.reshape(X, (X.shape[0], -1))
+	Y = torch.reshape(Y, (Y.shape[0], -1))
+	n = X.shape[0]
+
+	#print('width_x : ', width_x)
+	#print('width_y : ', width_y)
+
+	H = torch.eye(n) - (torch.ones((n,n)) / n).float()
+	K = rbf_dot(X, X, width_x)
+	L = rbf_dot(Y, Y, width_y)
+
+	H = H.to(K.device)
+	Kc = torch.matmul(torch.matmul(H, K), H)
+	Lc = torch.matmul(torch.matmul(H, L), H)
+
+	HSIC_fixed = torch.sum(Kc.T * Lc) / n
+	HSIC_xx = torch.sum(Kc.T * Kc) / n
+	HSIC_yy = torch.sum(Lc.T * Lc) / n
+
+	normalized_HSIC = HSIC_fixed / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy))
+
+	if return_width == True :
+		return normalized_HSIC, (width_x, width_y)
+	elif return_width == False:
+		return normalized_HSIC
+
 
 '''
 from PIL import Image
@@ -347,89 +412,90 @@ if __name__ == "__main__" :
 	plt.show()
 
 """
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import torch
-import random
-from torch.utils.data import Dataset
-from torchvision import datasets
-from torchvision.transforms import ToTensor
-from torchvision.datasets import ImageFolder
-import torchvision.transforms as T
-import torch.utils.data as data
-
-from PIL import Image
-import os
-
-# for reproducibility ----------------------@
-random_seed = 42
-np.random.seed(random_seed)
-random.seed(random_seed)
-torch.manual_seed(random_seed)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-
-# ------------------------------------------@
-
-IMG_EXTENSIONS = [
-	'.jpg', '.JPG', '.jpeg', '.JPEG',
-	'.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
-	'.tif', '.TIF', '.tiff', '.TIFF',
-]
-
-
-def is_image_file(filename):
-	return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
-
-
-def make_dataset(dir, max_dataset_size=float("inf")):
-	images = []
-	assert os.path.isdir(dir), '%s is not a valid directory' % dir
-
-	for root, _, fnames in sorted(os.walk(dir)):
-		for fname in fnames:
-			if is_image_file(fname):
-				path = os.path.join(root, fname)
-				images.append(path)
-	return images[:min(max_dataset_size, len(images))]
-
-
-def default_loader(path):
-	return Image.open(path).convert('RGB')
-
-
-class ImageFolder(data.Dataset):
-
-	def __init__(self, root, transform=None, return_paths=False,
-				 loader=default_loader):
-		imgs = make_dataset(root)
-		if len(imgs) == 0:
-			raise (RuntimeError("Found 0 images in: " + root + "\n"
-															   "Supported image extensions are: " + ",".join(
-				IMG_EXTENSIONS)))
-
-		self.root = root
-		self.imgs = imgs
-		self.transform = transform
-		self.return_paths = return_paths
-		self.loader = loader
-
-	def __getitem__(self, index):
-		path = self.imgs[index]
-		img = self.loader(path)
-		if self.transform is not None:
-			img = self.transform(img)
-		if self.return_paths:
-			return img, path
-		else:
-			return img
-
-	def __len__(self):
-		return len(self.imgs)
-
-
 if __name__ == '__main__':
+
+	import numpy as np
+	import matplotlib.pyplot as plt
+	import seaborn as sns
+	import torch
+	import random
+	from torch.utils.data import Dataset
+	from torchvision import datasets
+	from torchvision.transforms import ToTensor
+	from torchvision.datasets import ImageFolder
+	import torchvision.transforms as T
+	import torch.utils.data as data
+
+	from PIL import Image
+	import os
+
+	# for reproducibility ----------------------@
+	random_seed = 42
+	np.random.seed(random_seed)
+	random.seed(random_seed)
+	torch.manual_seed(random_seed)
+	torch.backends.cudnn.deterministic = True
+	torch.backends.cudnn.benchmark = False
+
+	# ------------------------------------------@
+
+	IMG_EXTENSIONS = [
+		'.jpg', '.JPG', '.jpeg', '.JPEG',
+		'.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
+		'.tif', '.TIF', '.tiff', '.TIFF',
+	]
+
+
+	def is_image_file(filename):
+		return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+
+
+	def make_dataset(dir, max_dataset_size=float("inf")):
+		images = []
+		assert os.path.isdir(dir), '%s is not a valid directory' % dir
+
+		for root, _, fnames in sorted(os.walk(dir)):
+			for fname in fnames:
+				if is_image_file(fname):
+					path = os.path.join(root, fname)
+					images.append(path)
+		return images[:min(max_dataset_size, len(images))]
+
+
+	def default_loader(path):
+		return Image.open(path).convert('RGB')
+
+
+	class ImageFolder(data.Dataset):
+
+		def __init__(self, root, transform=None, return_paths=False,
+					 loader=default_loader):
+			imgs = make_dataset(root)
+			if len(imgs) == 0:
+				raise (RuntimeError("Found 0 images in: " + root + "\n"
+																   "Supported image extensions are: " + ",".join(
+					IMG_EXTENSIONS)))
+
+			self.root = root
+			self.imgs = imgs
+			self.transform = transform
+			self.return_paths = return_paths
+			self.loader = loader
+
+		def __getitem__(self, index):
+			path = self.imgs[index]
+			img = self.loader(path)
+			if self.transform is not None:
+				img = self.transform(img)
+			if self.return_paths:
+				return img, path
+			else:
+				return img
+
+		def __len__(self):
+			return len(self.imgs)
+
+
 	n_image = 20000
 
 	#	dataset_root_dict = {'CIFAR10': "/syn_mnt/insoo/datasets/cifar10_imagenet/trainA",
