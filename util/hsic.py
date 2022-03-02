@@ -29,6 +29,8 @@ thresh		test threshold for level alpha test
 
 
 def rbf_dot(pattern1, pattern2, deg):
+	print("who is executed? 3")
+
 	size1 = pattern1.shape
 	size2 = pattern2.shape
 
@@ -46,6 +48,8 @@ def rbf_dot(pattern1, pattern2, deg):
 
 
 def hsic_gam(X, Y, alph = 0.5, kernel_param_average_method=None):
+	print("who is executed? 4")
+
 	"""
 	X, Y are numpy vectors with row - sample, col - dim
 	alph is the significance level
@@ -184,15 +188,104 @@ def hsic_fixed(X, Y, width_x, width_y):
 
 	return (testStat, (width_x, width_y))
 
-def normalized_HSIC(X, Y, alph = 0.5, return_width=False, kernel_param_average_method='median'):
-	HSIC_xx,_ = hsic_gam(X, X, kernel_param_average_method=kernel_param_average_method)
-	HSIC_yy,_ = hsic_gam(Y, Y, kernel_param_average_method=kernel_param_average_method)
-	if return_width == False:
-		return hsic_gam(X, Y, alph=alph, kernel_param_average_method=kernel_param_average_method)[0] / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy))
-	else :
-		HSIC, (width_x, width_y) = hsic_gam(X, Y, alph=alph, kernel_param_average_method=kernel_param_average_method)
-		normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy))
+def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'):
+	"""
+		X, Y are numpy vectors with row - sample, col - dim
+		alph is the significance level
+		auto choose median to be the kernel width
+		"""
+	print("who is executed? 1")
+	if kernel_param_average_method == 'median':
+		average_func = torch.median
+	elif kernel_param_average_method == 'mean':
+		average_func = torch.mean
+	else:
+		print("kernel average function should be specified, 'median' or 'mean'")
+	print(X.shape, "X.shape")
+	print(Y.shape, "Y.shape")
+	if type(X) == list:
+		X = torch.unsqueeze(X, 1)
+	if type(Y) == list:
+		Y = torch.unsqueeze(Y, 1)
+	X = torch.reshape(X, (X.shape[0], -1))
+	Y = torch.reshape(Y, (Y.shape[0], -1))
+	n = X.shape[0]
+	print(X.shape, "X.shape")
+	print(Y.shape, "Y.shape")
+
+	# ----- width of X -----
+	Xmed = X
+	# print(Xmed.shape, "X shape")
+
+	# print(Xmed*Xmed.shape, "Xmed*Xmed.shape")
+	# print(torch.matmul(Xmed.T,Xmed).shape, "Xmed.T @ Xmed. shape")
+	# print(torch.sum(Xmed*Xmed, 1).shape, "np.sum(Xmed*Xmed,1) shape")
+
+	G = torch.sum(Xmed * Xmed, 1).reshape(n, 1)  #
+	# print(G.shape)
+	Q = torch.tile(G, (1, n))
+	# print(Q.shape)
+	R = torch.tile(G.T, (n, 1))
+	# print(R.shape)
+
+	dists = Q + R - 2 * torch.matmul(Xmed, Xmed.T)
+	print(dists.shape, "dists.shape")
+	dists = dists - torch.tril(dists)
+	dists = dists.reshape(n ** 2, 1)
+	dists = torch.sqrt(dists)
+	print(dists.shape, "dists.shape")
+	print(dists, "dists")
+
+	# print(dists.shape)
+
+	#print(dists[dists > 0])
+
+	#print(average_func(dists[dists > 0]), "average value")
+
+	width_x = average_func(dists[dists > 0])  # delta 값이 median으로 # kernel matrix 값을 살펴봐야 할 것 같음 > 직접 값을 보여드리는 게 좋을 것 같습니다.
+	# ----- -----
+
+	# ----- width of Y -----
+	Ymed = Y
+
+	G = torch.sum(Ymed * Ymed, 1).reshape(n, 1)
+	Q = torch.tile(G, (1, n))
+	R = torch.tile(G.T, (n, 1))
+
+	dists = Q + R - 2 * torch.matmul(Ymed, Ymed.T)
+	dists = dists - torch.tril(dists)
+	dists = dists.reshape(n ** 2, 1)
+	dists = torch.sqrt(dists)
+
+	width_y = average_func(dists[dists > 0])
+	# ----- -----
+	print('width_x : ', width_x)
+	print('width_y : ', width_y)
+
+	bone = torch.ones((n, 1)).to(torch.float)
+	H = torch.eye(n) - (torch.ones((n, n)) / n).float()
+
+	K = rbf_dot(X, X, width_x)
+	bone = bone.to(K.device)
+
+	L = rbf_dot(Y, Y, width_y)
+
+	H = H.to(K.device)
+	Kc = torch.matmul(torch.matmul(H, K), H)
+	Lc = torch.matmul(torch.matmul(H, L), H)
+
+	testStat = torch.sum(Kc.T * Lc) / n
+
+	HSIC = torch.sum(Kc.T * Lc) / n
+	HSIC_xx = torch.sum(Kc.T * Kc) / n
+	HSIC_yy = torch.sum(Lc.T * Lc) / n
+
+	normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy)) + torch.finfo(torch.float32).eps
+
+	if return_width == True:
 		return normalized_HSIC, (width_x, width_y)
+	elif return_width == False:
+		return normalized_HSIC
 
 def kernel_matrix_fixed_width(X, width_x = None):
 	"""
@@ -211,6 +304,8 @@ def kernel_matrix_fixed_width(X, width_x = None):
 	return K
 
 def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
+	print("who is executed? 2")
+
 	#print(X.shape, "X.shape")
 	#print(Y.shape, "Y.shape")
 	if type(X) == list :

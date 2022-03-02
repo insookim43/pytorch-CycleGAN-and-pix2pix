@@ -11,8 +11,6 @@ def sendmessage(content, url='https://discord.com/api/webhooks/93067808307216805
     webhook = DiscordWebhook(url=url, content=content)
     response = webhook.execute()
 
-torch.cuda.empty_cache()
-
 class CycleGANModel(BaseModel):
     """
     This class implements the CycleGAN model, for learning image-to-image translation without paired data.
@@ -87,11 +85,15 @@ class CycleGANModel(BaseModel):
         self.netG_B = networks.define_G(opt.output_nc, opt.input_nc, opt.ngf, opt.netG, opt.norm,
                                         not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids, if_forward=False)
 
+        print("allocated to model 1", torch.cuda.memory_allocated()/1024/1024)
+
         if self.isTrain:  # define discriminators
             self.netD_A = networks.define_D(opt.output_nc, opt.ndf, opt.netD,
                                             opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain, self.gpu_ids)
             self.netD_B = networks.define_D(opt.input_nc, opt.ndf, opt.netD,
                                             opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain, self.gpu_ids)
+
+        print("allocated to model 2", torch.cuda.memory_allocated()/1024/1024)
 
         if self.isTrain:
             if opt.lambda_identity > 0.0:  # only works when input and output images have the same number of channels
@@ -108,6 +110,11 @@ class CycleGANModel(BaseModel):
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
+            print("allocated to model 3", torch.cuda.memory_allocated()/1024/1024)
+
+        self.opt.fix_kernel_width = opt.fix_kernel_width
+
+
     def set_input(self, input):
         """Unpack input data from the dataloader and perform necessary pre-processing steps.
 
@@ -123,10 +130,10 @@ class CycleGANModel(BaseModel):
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
-        self.fake_B = self.netG_A(self.real_A)  # G_A(A)
-        self.rec_A = self.netG_B(self.fake_B)   # G_B(G_A(A))
-        self.fake_A = self.netG_B(self.real_B)  # G_B(B)
-        self.rec_B = self.netG_A(self.fake_A)   # G_A(G_B(B))
+        self.intermediate_B, self.fake_B = self.netG_A(self.real_A)  # G_A(A)
+        self.intermediate_rec_A, self.rec_A = self.netG_B(self.fake_B)   # G_B(G_A(A))
+        self.intermediate_A, self.fake_A = self.netG_B(self.real_B)  # G_B(B)
+        self.intermediate_rec_B, self.rec_B = self.netG_A(self.fake_A)   # G_A(G_B(B))
 
     def backward_D_basic(self, netD, real, fake):
         """Calculate GAN loss for the discriminator
@@ -168,7 +175,7 @@ class CycleGANModel(BaseModel):
         lambda_C = self.opt.lambda_C
         width_x = self.opt.width_x
         width_y = self.opt.width_y
-        fix_kernel_width = self.opt.fix_kernel_width
+
         # Identity loss
         if lambda_idt > 0:
             # G_A should be identity if real_B is fed: ||G_A(B) - B||
@@ -191,18 +198,22 @@ class CycleGANModel(BaseModel):
         # Backward cycle loss || G_A(G_B(B)) - B||
         self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
 
+        print("allocated to model 5", torch.cuda.memory_allocated()/1024/1024)
+
         
         # Forward negative normalized HSIC
-        if fix_kernel_width == False:
-            self.loss_HSIC_B = -normalized_HSIC(self.real_A, self.fake_B) * lambda_C
+        if self.opt.fix_kernel_width == 'False' or 'false':
+            self.loss_HSIC_B = -normalized_HSIC(self.intermediate_B, self.fake_B) * lambda_C
             # Backward negative normalized HSIC
-            self.loss_HSIC_A = -normalized_HSIC(self.real_B, self.fake_A) * lambda_C
-        if fix_kernel_width == True:
-            self.loss_HSIC_B = -normalized_HSIC_fixed(self.real_A, self.fake_B, width_x, width_y) * lambda_C
-            self.loss_HSIC_A = -normalized_HSIC_fixed(self.real_B, self.fake_A, width_x, width_y) * lambda_C
+            self.loss_HSIC_A = -normalized_HSIC(self.intermediate_A, self.fake_A) * lambda_C
+        elif self.opt.fix_kernel_width == 'True' or 'true':
+            self.loss_HSIC_B = -normalized_HSIC_fixed(self.intermediate_B, self.fake_B, width_x, width_y) * lambda_C
+            self.loss_HSIC_A = -normalized_HSIC_fixed(self.intermediate_A, self.fake_A, width_x, width_y) * lambda_C
 
         else :
             raise Exception('--fix_kernel_width should be specified.')
+
+        print("allocated to model 6", torch.cuda.memory_allocated()/1024/1024)
 
         # combined loss and calculate gradients
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B + self.loss_HSIC_A + self.loss_HSIC_B
@@ -219,7 +230,7 @@ class CycleGANModel(BaseModel):
         self.optimizer_G.step()       # update G_A and G_B's weights
         # D_A and D_B
         self.set_requires_grad([self.netD_A, self.netD_B], True)
-        self.optimizer_D.zero_grad()   # set D_A and D_B's gradients to zero
+        self.optimizer_D.zero_grad()   # set D_A and D_B's gradients t4o zero
         self.backward_D_A()      # calculate gradients for D_A
         self.backward_D_B()      # calculate graidents for D_B
         self.optimizer_D.step()  # update D_A and D_B's weights
