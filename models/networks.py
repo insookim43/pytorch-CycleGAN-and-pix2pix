@@ -90,9 +90,9 @@ def init_weights(net, init_type='normal', init_gain=0.02):
                 raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
             if hasattr(m, 'bias') and m.bias is not None:
                 init.constant_(m.bias.data, 0.0)
-        elif classname.find('BatchNorm2d') != -1:  # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
-            init.normal_(m.weight.data, 1.0, init_gain)
-            init.constant_(m.bias.data, 0.0)
+        #elif classname.find('BatchNorm2d') != -1:  # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
+        #    init.normal_(m.weight.data, 1.0, init_gain)
+        #    init.constant_(m.bias.data, 0.0)
 
     print('initialize network with %s' % init_type)
     net.apply(init_func)  # apply the initialization function <init_func>
@@ -353,9 +353,9 @@ class ResnetGenerator(nn.Module):
 
             mult = 2 ** n_downsampling
             for i in range(n_blocks):       # add ResNet blocks
-
                 mid_model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
 
+            BN_mid_model = [nn.BatchNorm2d(ngf * mult, affine=False)]
             latter_model = []
 
             for i in range(n_downsampling):  # add upsampling layers
@@ -394,6 +394,7 @@ class ResnetGenerator(nn.Module):
                     ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
                                 use_bias=use_bias)]
 
+            BN_mid_model = [nn.BatchNorm2d(ngf * mult, affine=False)]
             latter_model = []
 
             for i in range(n_downsampling - 1):  # add upsampling layers
@@ -410,13 +411,15 @@ class ResnetGenerator(nn.Module):
 
         self.mid_model = nn.Sequential(*mid_model)
         self.latter_model = nn.Sequential(*latter_model)
+        self.BN_mid_model = nn.Sequential(*BN_mid_model)
 
 
     def forward(self, input):
         """Standard forward"""
-        mid_model = self.mid_model(input)
-        out = self.latter_model(mid_model)
-        return mid_model, out
+        mid_model_out = self.mid_model(input)
+        BN_mid_model_out = self.BN_mid_model(mid_model_out)
+        out = self.latter_model(mid_model_out)
+        return mid_model_out, BN_mid_model_out, out
 
 
 class ResnetBlock(nn.Module):

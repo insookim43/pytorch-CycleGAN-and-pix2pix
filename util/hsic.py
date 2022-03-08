@@ -1,9 +1,12 @@
 from __future__ import division
-
+import pandas as pd
 import torch
 import torch.nn as nn
 import numpy as np
 from scipy.stats import gamma
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 def to_numpy(x):
     """convert Pytorch tensor to numpy array
@@ -29,8 +32,6 @@ thresh		test threshold for level alpha test
 
 
 def rbf_dot(pattern1, pattern2, deg):
-	print("who is executed? 3")
-
 	size1 = pattern1.shape
 	size2 = pattern2.shape
 
@@ -48,8 +49,6 @@ def rbf_dot(pattern1, pattern2, deg):
 
 
 def hsic_gam(X, Y, alph = 0.5, kernel_param_average_method=None):
-	print("who is executed? 4")
-
 	"""
 	X, Y are numpy vectors with row - sample, col - dim
 	alph is the significance level
@@ -194,7 +193,6 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 		alph is the significance level
 		auto choose median to be the kernel width
 		"""
-	print("who is executed? 1")
 	if kernel_param_average_method == 'median':
 		average_func = torch.median
 	elif kernel_param_average_method == 'mean':
@@ -210,8 +208,8 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 	X = torch.reshape(X, (X.shape[0], -1))
 	Y = torch.reshape(Y, (Y.shape[0], -1))
 	n = X.shape[0]
-	print(X.shape, "X.shape")
-	print(Y.shape, "Y.shape")
+	# print(X.shape, "X.shape")
+	# print(Y.shape, "Y.shape")
 
 	# ----- width of X -----
 	Xmed = X
@@ -229,12 +227,12 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 	# print(R.shape)
 
 	dists = Q + R - 2 * torch.matmul(Xmed, Xmed.T)
-	print(dists.shape, "dists.shape")
 	dists = dists - torch.tril(dists)
+
 	dists = dists.reshape(n ** 2, 1)
 	dists = torch.sqrt(dists)
-	print(dists.shape, "dists.shape")
-	print(dists, "dists")
+	print(dists.shape, "X dists.shape")
+	print("X dists\n", pd.DataFrame(to_numpy(dists)))
 
 	# print(dists.shape)
 
@@ -254,8 +252,11 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 
 	dists = Q + R - 2 * torch.matmul(Ymed, Ymed.T)
 	dists = dists - torch.tril(dists)
+
 	dists = dists.reshape(n ** 2, 1)
 	dists = torch.sqrt(dists)
+	print(dists.shape, "Y dists.shape")
+	print("Y dists\n", pd.DataFrame(to_numpy(dists)))
 
 	width_y = average_func(dists[dists > 0])
 	# ----- -----
@@ -281,6 +282,8 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 	HSIC_yy = torch.sum(Lc.T * Lc) / n
 
 	normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy)) + torch.finfo(torch.float32).eps
+	print("normalized_HSIC")
+	print(normalized_HSIC)
 
 	if return_width == True:
 		return normalized_HSIC, (width_x, width_y)
@@ -304,8 +307,6 @@ def kernel_matrix_fixed_width(X, width_x = None):
 	return K
 
 def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
-	print("who is executed? 2")
-
 	#print(X.shape, "X.shape")
 	#print(Y.shape, "Y.shape")
 	if type(X) == list :
@@ -322,6 +323,23 @@ def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
 	H = torch.eye(n) - (torch.ones((n,n)) / n).float()
 	K = rbf_dot(X, X, width_x)
 	L = rbf_dot(Y, Y, width_y)
+
+	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+
+	plt.subplot(1,2,1)
+	ax = sns.heatmap(K.cpu().detach(), annot=True, fmt='.1g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("X kernel matrix")
+
+	plt.subplot(1,2,2)
+	ax = sns.heatmap(L.cpu().detach(), annot=True, fmt='.1g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("Y kernel matrix")
+
+
+	plt.show()
 
 	H = H.to(K.device)
 	Kc = torch.matmul(torch.matmul(H, K), H)
