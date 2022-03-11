@@ -355,7 +355,7 @@ class ResnetGenerator(nn.Module):
             for i in range(n_blocks):       # add ResNet blocks
                 mid_model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
 
-            BN_mid_model = [nn.BatchNorm2d(ngf * mult, affine=False)]
+            BN_mid_model = [nn.BatchNorm2d(ngf * mult, affine=True)]
             latter_model = []
 
             for i in range(n_downsampling):  # add upsampling layers
@@ -394,7 +394,7 @@ class ResnetGenerator(nn.Module):
                     ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
                                 use_bias=use_bias)]
 
-            BN_mid_model = [nn.BatchNorm2d(ngf * mult, affine=False)]
+            BN_mid_model = [nn.BatchNorm2d(ngf * mult, affine=True)]
             latter_model = []
 
             for i in range(n_downsampling - 1):  # add upsampling layers
@@ -414,12 +414,25 @@ class ResnetGenerator(nn.Module):
         self.BN_mid_model = nn.Sequential(*BN_mid_model)
 
 
-    def forward(self, input):
+    def forward(self, x):
         """Standard forward"""
-        mid_model_out = self.mid_model(input)
+        print("x", x)
+        mid_model_out = self.mid_model(x)
+        print("mid_model_out\n", mid_model_out)
         BN_mid_model_out = self.BN_mid_model(mid_model_out)
+        print("BN_mid_model_out\n", BN_mid_model_out)
+
+        mu = torch.mean(BN_mid_model_out, dim=(2, 3), keepdim=True)
+        sd = torch.std(BN_mid_model_out, dim=(2, 3), keepdim=True)
+        sd = torch.maximum(sd, torch.tensor(torch.finfo(torch.float32).eps, dtype=torch.float32))
+
+        BN_mid_model_out = BN_mid_model_out - mu
+        print("BN_mid_model_out\n", BN_mid_model_out)
+
+        x_inv_norm = torch.reciprocal(sd)
         out = self.latter_model(mid_model_out)
-        return mid_model_out, BN_mid_model_out, out
+        print("out, \n", out)
+        return mid_model_out, BN_mid_model_out * x_inv_norm, out
 
 
 class ResnetBlock(nn.Module):

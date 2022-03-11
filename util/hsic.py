@@ -208,6 +208,21 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 	X = torch.reshape(X, (X.shape[0], -1))
 	Y = torch.reshape(Y, (Y.shape[0], -1))
 	n = X.shape[0]
+
+	plt.subplot(2, 1, 1)
+	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+	ax = sns.heatmap(X.cpu().detach()[:,:100], annot=False, fmt='.4g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("representation X value matrix, only head 100")
+
+	plt.subplot(2, 1, 2)
+	ax = sns.heatmap(Y.cpu().detach()[:,:100], annot=False, fmt='.4g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("image Y value matrix, only head 100")
+
+	plt.show()
 	# print(X.shape, "X.shape")
 	# print(Y.shape, "Y.shape")
 
@@ -264,12 +279,28 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 	print('width_y : ', width_y)
 
 	bone = torch.ones((n, 1)).to(torch.float)
-	H = torch.eye(n) - (torch.ones((n, n)) / n).float()
 
+	H = torch.eye(n) - (torch.ones((n, n)) / n).float()
 	K = rbf_dot(X, X, width_x)
+	L = rbf_dot(Y, Y, width_y)
 	bone = bone.to(K.device)
 
-	L = rbf_dot(Y, Y, width_y)
+	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+
+	plt.subplot(1,2,1)
+	ax = sns.heatmap(K.cpu().detach(), annot=True, fmt='.4g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("X kernel matrix")
+
+	plt.subplot(1,2,2)
+	ax = sns.heatmap(L.cpu().detach(), annot=True, fmt='.4g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("Y kernel matrix")
+
+
+	plt.show()
 
 	H = H.to(K.device)
 	Kc = torch.matmul(torch.matmul(H, K), H)
@@ -281,11 +312,78 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 	HSIC_xx = torch.sum(Kc.T * Kc) / n
 	HSIC_yy = torch.sum(Lc.T * Lc) / n
 
-	normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy)) + torch.finfo(torch.float32).eps
+	normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy) + torch.finfo(torch.float32).eps)
 	print("normalized_HSIC")
 	print(normalized_HSIC)
 
 	if return_width == True:
+		return normalized_HSIC, (width_x, width_y)
+	elif return_width == False:
+		return normalized_HSIC
+
+def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
+	#print(X.shape, "X.shape")
+	#print(Y.shape, "Y.shape")
+	if type(X) == list :
+		X = torch.unsqueeze(X, 1)
+	if type(Y) == list :
+		Y = torch.unsqueeze(Y, 1)
+	X = torch.reshape(X, (X.shape[0], -1))
+	Y = torch.reshape(Y, (Y.shape[0], -1))
+	n = X.shape[0]
+
+	plt.subplot(2, 1, 1)
+	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+	ax = sns.heatmap(X.cpu().detach()[:,:100], annot=False, fmt='.4g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("representation X value matrix, only head 100")
+
+	plt.subplot(2, 1, 2)
+	ax = sns.heatmap(Y.cpu().detach()[:,:100], annot=False, fmt='.4g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("image Y value matrix, only head 100")
+
+	plt.show()
+
+	#print('width_x : ', width_x)
+	#print('width_y : ', width_y)
+
+	H = torch.eye(n) - (torch.ones((n,n)) / n).float()
+	K = rbf_dot(X, X, width_x)
+	L = rbf_dot(Y, Y, width_y)
+
+	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+
+	plt.subplot(1,2,1)
+	ax = sns.heatmap(K.cpu().detach(), annot=True, fmt='.4g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("X kernel matrix")
+
+	plt.subplot(1,2,2)
+	ax = sns.heatmap(L.cpu().detach(), annot=True, fmt='.4g')
+	cbar = ax.collections[0].colorbar
+	cbar.ax.tick_params(labelsize=10)
+	plt.title("Y kernel matrix")
+
+
+	plt.show()
+
+	H = H.to(K.device)
+	Kc = torch.matmul(torch.matmul(H, K), H)
+	Lc = torch.matmul(torch.matmul(H, L), H)
+
+	HSIC_fixed = torch.sum(Kc.T * Lc) / n
+	HSIC_xx = torch.sum(Kc.T * Kc) / n
+	HSIC_yy = torch.sum(Lc.T * Lc) / n
+
+	normalized_HSIC = HSIC_fixed / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy) + torch.finfo(torch.float32).eps)
+	print("normalized_HSIC")
+	print(normalized_HSIC)
+
+	if return_width == True :
 		return normalized_HSIC, (width_x, width_y)
 	elif return_width == False:
 		return normalized_HSIC
@@ -305,57 +403,6 @@ def kernel_matrix_fixed_width(X, width_x = None):
 	K = rbf_dot(X, X, width_x)
 
 	return K
-
-def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
-	#print(X.shape, "X.shape")
-	#print(Y.shape, "Y.shape")
-	if type(X) == list :
-		X = torch.unsqueeze(X, 1)
-	if type(Y) == list :
-		Y = torch.unsqueeze(Y, 1)
-	X = torch.reshape(X, (X.shape[0], -1))
-	Y = torch.reshape(Y, (Y.shape[0], -1))
-	n = X.shape[0]
-
-	#print('width_x : ', width_x)
-	#print('width_y : ', width_y)
-
-	H = torch.eye(n) - (torch.ones((n,n)) / n).float()
-	K = rbf_dot(X, X, width_x)
-	L = rbf_dot(Y, Y, width_y)
-
-	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
-
-	plt.subplot(1,2,1)
-	ax = sns.heatmap(K.cpu().detach(), annot=True, fmt='.1g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("X kernel matrix")
-
-	plt.subplot(1,2,2)
-	ax = sns.heatmap(L.cpu().detach(), annot=True, fmt='.1g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("Y kernel matrix")
-
-
-	plt.show()
-
-	H = H.to(K.device)
-	Kc = torch.matmul(torch.matmul(H, K), H)
-	Lc = torch.matmul(torch.matmul(H, L), H)
-
-	HSIC_fixed = torch.sum(Kc.T * Lc) / n
-	HSIC_xx = torch.sum(Kc.T * Kc) / n
-	HSIC_yy = torch.sum(Lc.T * Lc) / n
-
-	normalized_HSIC = HSIC_fixed / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy))
-
-	if return_width == True :
-		return normalized_HSIC, (width_x, width_y)
-	elif return_width == False:
-		return normalized_HSIC
-
 
 '''
 from PIL import Image
