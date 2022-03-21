@@ -416,23 +416,23 @@ class ResnetGenerator(nn.Module):
 
     def forward(self, x):
         """Standard forward"""
-        print("x", x)
+        #print("x", x)
         mid_model_out = self.mid_model(x)
-        print("mid_model_out\n", mid_model_out)
+        #print("mid_model_out\n", mid_model_out)
         BN_mid_model_out = self.BN_mid_model(mid_model_out)
-        print("BN_mid_model_out\n", BN_mid_model_out)
+        #print("BN_mid_model_out\n", BN_mid_model_out)
 
         mu = torch.mean(BN_mid_model_out, dim=(2, 3), keepdim=True)
         sd = torch.std(BN_mid_model_out, dim=(2, 3), keepdim=True)
         sd = torch.maximum(sd, torch.tensor(torch.finfo(torch.float32).eps, dtype=torch.float32))
 
         BN_mid_model_out = BN_mid_model_out - mu
-        print("BN_mid_model_out\n", BN_mid_model_out)
+        #print("BN_mid_model_out\n", BN_mid_model_out)
 
         x_inv_norm = torch.reciprocal(sd)
         out = self.latter_model(mid_model_out)
-        print("out, \n", out)
-        return mid_model_out, BN_mid_model_out * x_inv_norm, out
+        #print("out, \n", out)
+        return BN_mid_model_out * x_inv_norm, out
 
 
 class ResnetBlock(nn.Module):

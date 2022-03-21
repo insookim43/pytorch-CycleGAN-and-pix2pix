@@ -90,7 +90,7 @@ def hsic_gam(X, Y, alph = 0.5, kernel_param_average_method=None):
 	#print(dists.shape)
 	dists = dists - torch.tril(dists)
 	dists = dists.reshape(n**2, 1)
-	dists = torch.sqrt(dists)
+	dists = torch.sqrt(dists + torch.finfo(torch.float32).eps)
 	#print(dists.shape)
 
 	print(dists[dists>0])
@@ -110,7 +110,7 @@ def hsic_gam(X, Y, alph = 0.5, kernel_param_average_method=None):
 	dists = Q + R - 2* torch.matmul(Ymed, Ymed.T)
 	dists = dists - torch.tril(dists)
 	dists = dists.reshape(n**2, 1)
-	dists = torch.sqrt(dists)
+	dists = torch.sqrt(dists + torch.finfo(torch.float32).eps)
 
 
 	width_y = average_func(dists[dists>0])
@@ -199,8 +199,9 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 		average_func = torch.mean
 	else:
 		print("kernel average function should be specified, 'median' or 'mean'")
-	print(X.shape, "X.shape")
-	print(Y.shape, "Y.shape")
+	#print(X.shape, "X.shape")
+	#print(Y.shape, "Y.shape")
+
 	if type(X) == list:
 		X = torch.unsqueeze(X, 1)
 	if type(Y) == list:
@@ -208,113 +209,127 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 	X = torch.reshape(X, (X.shape[0], -1))
 	Y = torch.reshape(Y, (Y.shape[0], -1))
 	n = X.shape[0]
+	# print("allocated memory / normalized HSIC variable reshape", torch.cuda.memory_allocated() / 1024 / 1024)
 
-	plt.subplot(2, 1, 1)
-	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
-	ax = sns.heatmap(X.cpu().detach()[:,:100], annot=False, fmt='.4g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("representation X value matrix, only head 100")
-
-	plt.subplot(2, 1, 2)
-	ax = sns.heatmap(Y.cpu().detach()[:,:100], annot=False, fmt='.4g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("image Y value matrix, only head 100")
-
-	plt.show()
+	# plt.subplot(2, 1, 1)
+	# sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+	# ax = sns.heatmap(X.cpu().detach()[:,:100], annot=False, fmt='.4g')
+	# cbar = ax.collections[0].colorbar
+	# cbar.ax.tick_params(labelsize=10)
+	# plt.title("representation X value matrix, only head 100")
+	#
+	# plt.subplot(2, 1, 2)
+	# ax = sns.heatmap(Y.cpu().detach()[:,:100], annot=False, fmt='.4g')
+	# cbar = ax.collections[0].colorbar
+	# cbar.ax.tick_params(labelsize=10)
+	# plt.title("image Y value matrix, only head 100")
+	#
+	# plt.show()
 	# print(X.shape, "X.shape")
 	# print(Y.shape, "Y.shape")
 
-	# ----- width of X -----
-	Xmed = X
-	# print(Xmed.shape, "X shape")
+	with torch.no_grad():
+		# ----- width of X -----
+		Xmed = X
+		# print(Xmed.shape, "X shape")
 
-	# print(Xmed*Xmed.shape, "Xmed*Xmed.shape")
-	# print(torch.matmul(Xmed.T,Xmed).shape, "Xmed.T @ Xmed. shape")
-	# print(torch.sum(Xmed*Xmed, 1).shape, "np.sum(Xmed*Xmed,1) shape")
+		# print(Xmed*Xmed.shape, "Xmed*Xmed.shape")
+		# print(torch.matmul(Xmed.T,Xmed).shape, "Xmed.T @ Xmed. shape")
+		# print(torch.sum(Xmed*Xmed, 1).shape, "np.sum(Xmed*Xmed,1) shape")
+		G = torch.sum(Xmed * Xmed, 1).reshape(n, 1)  #
 
-	G = torch.sum(Xmed * Xmed, 1).reshape(n, 1)  #
-	# print(G.shape)
-	Q = torch.tile(G, (1, n))
-	# print(Q.shape)
-	R = torch.tile(G.T, (n, 1))
-	# print(R.shape)
+		# print(G.shape)
+		Q = torch.tile(G, (1, n))
+		# print(Q.shape)
+		R = torch.tile(G.T, (n, 1))
+		# print(R.shape)
 
-	dists = Q + R - 2 * torch.matmul(Xmed, Xmed.T)
-	dists = dists - torch.tril(dists)
 
-	dists = dists.reshape(n ** 2, 1)
-	dists = torch.sqrt(dists)
-	print(dists.shape, "X dists.shape")
-	print("X dists\n", pd.DataFrame(to_numpy(dists)))
+		dists = Q + R - 2 * torch.matmul(Xmed, Xmed.T)
+		dists = dists - torch.tril(dists)
 
-	# print(dists.shape)
+		dists = dists.reshape(n ** 2, 1)
+		dists = torch.sqrt(dists + torch.finfo(torch.float32).eps)
 
-	#print(dists[dists > 0])
+		#print(dists.shape, "X dists.shape")
+		#print("X dists\n", pd.DataFrame(to_numpy(dists)))
 
-	#print(average_func(dists[dists > 0]), "average value")
+		# print(dists.shape)
 
-	width_x = average_func(dists[dists > 0])  # delta 값이 median으로 # kernel matrix 값을 살펴봐야 할 것 같음 > 직접 값을 보여드리는 게 좋을 것 같습니다.
-	# ----- -----
+		#print(dists[dists > 0])
 
-	# ----- width of Y -----
-	Ymed = Y
+		#print(average_func(dists[dists > 0]), "average value")
 
-	G = torch.sum(Ymed * Ymed, 1).reshape(n, 1)
-	Q = torch.tile(G, (1, n))
-	R = torch.tile(G.T, (n, 1))
+		width_x = average_func(dists[dists > 0])  # delta 값이 median으로 # kernel matrix 값을 살펴봐야 할 것 같음 > 직접 값을 보여드리는 게 좋을 것 같습니다.
 
-	dists = Q + R - 2 * torch.matmul(Ymed, Ymed.T)
-	dists = dists - torch.tril(dists)
+		# ----- -----
 
-	dists = dists.reshape(n ** 2, 1)
-	dists = torch.sqrt(dists)
-	print(dists.shape, "Y dists.shape")
-	print("Y dists\n", pd.DataFrame(to_numpy(dists)))
+		# ----- width of Y -----
+		Ymed = Y
 
-	width_y = average_func(dists[dists > 0])
-	# ----- -----
+
+		G = torch.sum(Ymed * Ymed, 1).reshape(n, 1)
+		Q = torch.tile(G, (1, n))
+		R = torch.tile(G.T, (n, 1))
+
+		dists = Q + R - 2 * torch.matmul(Ymed, Ymed.T)
+		dists = dists - torch.tril(dists)
+
+		dists = dists.reshape(n ** 2, 1)
+		dists = torch.sqrt(dists + torch.finfo(torch.float32).eps)
+
+		#print(dists.shape, "Y dists.shape")
+		#print("Y dists\n", pd.DataFrame(to_numpy(dists)))
+
+		width_y = average_func(dists[dists > 0])
+		# ----- -----
+	# print("allocated memory / normalized HSIC width computation", torch.cuda.memory_allocated() / 1024 / 1024)
+
 	print('width_x : ', width_x)
 	print('width_y : ', width_y)
 
-	bone = torch.ones((n, 1)).to(torch.float)
+	# bone = torch.ones((n, 1)).to(torch.float)
 
 	H = torch.eye(n) - (torch.ones((n, n)) / n).float()
 	K = rbf_dot(X, X, width_x)
 	L = rbf_dot(Y, Y, width_y)
-	bone = bone.to(K.device)
-
-	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
-
-	plt.subplot(1,2,1)
-	ax = sns.heatmap(K.cpu().detach(), annot=True, fmt='.4g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("X kernel matrix")
-
-	plt.subplot(1,2,2)
-	ax = sns.heatmap(L.cpu().detach(), annot=True, fmt='.4g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("Y kernel matrix")
-
-
-	plt.show()
+	# bone = bone.to(K.device)
+	# sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+	#
+	# plt.subplot(1,2,1)
+	# ax = sns.heatmap(K.cpu().detach(), annot=True, fmt='.4g')
+	# cbar = ax.collections[0].colorbar
+	# cbar.ax.tick_params(labelsize=10)
+	# plt.title("X kernel matrix")
+	#
+	# plt.subplot(1,2,2)
+	# ax = sns.heatmap(L.cpu().detach(), annot=True, fmt='.4g')
+	# cbar = ax.collections[0].colorbar
+	# cbar.ax.tick_params(labelsize=10)
+	# plt.title("Y kernel matrix")
+	#
+	#
+	# plt.show()
 
 	H = H.to(K.device)
 	Kc = torch.matmul(torch.matmul(H, K), H)
 	Lc = torch.matmul(torch.matmul(H, L), H)
 
-	testStat = torch.sum(Kc.T * Lc) / n
+	#testStat = torch.sum(Kc.T * Lc) / n
 
 	HSIC = torch.sum(Kc.T * Lc) / n
 	HSIC_xx = torch.sum(Kc.T * Kc) / n
 	HSIC_yy = torch.sum(Lc.T * Lc) / n
 
-	normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy) + torch.finfo(torch.float32).eps)
+
+	normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx+torch.finfo(torch.float32).eps) * torch.sqrt(HSIC_yy+torch.finfo(torch.float32).eps) )
 	print("normalized_HSIC")
 	print(normalized_HSIC)
+
+	del Xmed, G, Q, R, dists, Ymed, H, K, L, Kc, Lc, HSIC, HSIC_xx, HSIC_yy
+	torch.cuda.empty_cache()
+	# print("allocated memory / normalized HSIC computation", torch.cuda.memory_allocated() / 1024 / 1024)
+
 
 	if return_width == True:
 		return normalized_HSIC, (width_x, width_y)
@@ -332,20 +347,20 @@ def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
 	Y = torch.reshape(Y, (Y.shape[0], -1))
 	n = X.shape[0]
 
-	plt.subplot(2, 1, 1)
-	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
-	ax = sns.heatmap(X.cpu().detach()[:,:100], annot=False, fmt='.4g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("representation X value matrix, only head 100")
-
-	plt.subplot(2, 1, 2)
-	ax = sns.heatmap(Y.cpu().detach()[:,:100], annot=False, fmt='.4g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("image Y value matrix, only head 100")
-
-	plt.show()
+	# plt.subplot(2, 1, 1)
+	# sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+	# ax = sns.heatmap(X.cpu().detach()[:,:100], annot=False, fmt='.4g')
+	# cbar = ax.collections[0].colorbar
+	# cbar.ax.tick_params(labelsize=10)
+	# plt.title("representation X value matrix, only head 100")
+	#
+	# plt.subplot(2, 1, 2)
+	# ax = sns.heatmap(Y.cpu().detach()[:,:100], annot=False, fmt='.4g')
+	# cbar = ax.collections[0].colorbar
+	# cbar.ax.tick_params(labelsize=10)
+	# plt.title("image Y value matrix, only head 100")
+	#
+	# plt.show()
 
 	#print('width_x : ', width_x)
 	#print('width_y : ', width_y)
@@ -354,22 +369,22 @@ def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
 	K = rbf_dot(X, X, width_x)
 	L = rbf_dot(Y, Y, width_y)
 
-	sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
-
-	plt.subplot(1,2,1)
-	ax = sns.heatmap(K.cpu().detach(), annot=True, fmt='.4g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("X kernel matrix")
-
-	plt.subplot(1,2,2)
-	ax = sns.heatmap(L.cpu().detach(), annot=True, fmt='.4g')
-	cbar = ax.collections[0].colorbar
-	cbar.ax.tick_params(labelsize=10)
-	plt.title("Y kernel matrix")
-
-
-	plt.show()
+	# sns.set(font_scale=0.5, rc={'figure.figsize': (14, 7)})
+	#
+	# plt.subplot(1,2,1)
+	# ax = sns.heatmap(K.cpu().detach(), annot=True, fmt='.4g')
+	# cbar = ax.collections[0].colorbar
+	# cbar.ax.tick_params(labelsize=10)
+	# plt.title("X kernel matrix")
+	#
+	# plt.subplot(1,2,2)
+	# ax = sns.heatmap(L.cpu().detach(), annot=True, fmt='.4g')
+	# cbar = ax.collections[0].colorbar
+	# cbar.ax.tick_params(labelsize=10)
+	# plt.title("Y kernel matrix")
+	#
+	#
+	# plt.show()
 
 	H = H.to(K.device)
 	Kc = torch.matmul(torch.matmul(H, K), H)
@@ -379,7 +394,7 @@ def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
 	HSIC_xx = torch.sum(Kc.T * Kc) / n
 	HSIC_yy = torch.sum(Lc.T * Lc) / n
 
-	normalized_HSIC = HSIC_fixed / (torch.sqrt(HSIC_xx) * torch.sqrt(HSIC_yy) + torch.finfo(torch.float32).eps)
+	normalized_HSIC = HSIC_fixed / (torch.sqrt(HSIC_xx + torch.finfo(torch.float32).eps) * torch.sqrt(HSIC_yy + torch.finfo(torch.float32).eps) )
 	print("normalized_HSIC")
 	print(normalized_HSIC)
 

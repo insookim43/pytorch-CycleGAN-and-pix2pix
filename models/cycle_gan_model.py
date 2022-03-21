@@ -46,7 +46,8 @@ class CycleGANModel(BaseModel):
         if is_train:
             parser.add_argument('--lambda_A', type=float, default=10.0, help='weight for cycle loss (A -> B -> A)')
             parser.add_argument('--lambda_B', type=float, default=10.0, help='weight for cycle loss (B -> A -> B)')
-            parser.add_argument('--lambda_C', type=float, default=0.00, help='weight for negative HSIC (same for forward/backward both directions), default is 1.0')
+            parser.add_argument('--lambda_HSIC', type=float, default=0.00,
+                                help='weight for negative HSIC (same for forward/backward both directions), default is 1.0')
             #parser.add_argument('--width_x', type=float, default=75.70923, help='width of domain A')
             #parser.add_argument('--width_y', type=float, default=609.7811, help='width of domain B')
             parser.add_argument('--width_x', type=float, default=634.8984, help='width of domain A')
@@ -87,15 +88,11 @@ class CycleGANModel(BaseModel):
         self.netG_B = networks.define_G(opt.output_nc, opt.input_nc, opt.ngf, opt.netG, opt.norm,
                                         not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids, if_forward=False)
 
-        print("allocated to model 1", torch.cuda.memory_allocated()/1024/1024)
-
         if self.isTrain:  # define discriminators
             self.netD_A = networks.define_D(opt.output_nc, opt.ndf, opt.netD,
                                             opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain, self.gpu_ids)
             self.netD_B = networks.define_D(opt.input_nc, opt.ndf, opt.netD,
                                             opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain, self.gpu_ids)
-
-        print("allocated to model 2", torch.cuda.memory_allocated()/1024/1024)
 
         if self.isTrain:
             if opt.lambda_identity > 0.0:  # only works when input and output images have the same number of channels
@@ -112,10 +109,11 @@ class CycleGANModel(BaseModel):
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
-            print("allocated to model 3", torch.cuda.memory_allocated()/1024/1024)
-
         self.opt.fix_kernel_width = opt.fix_kernel_width
         print(self.opt.fix_kernel_width ,"self.opt.fix_kernel_width is ###########################")
+        # print("allocated memory / model class init", torch.cuda.memory_allocated()/1024/1024)
+
+
 
 
     def set_input(self, input):
@@ -133,21 +131,24 @@ class CycleGANModel(BaseModel):
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
-        print("1")
-        self.temp_B, self.intermediate_B, self.fake_B = self.netG_A(self.real_A)  # G_A(A)
-        print("self.fake_B, \n", self.fake_B)
-        print("2")
-        self.temp_rec_A, self.intermediate_rec_A, self.rec_A = self.netG_B(self.fake_B)   # G_B(G_A(A))
-        print("3")
-        self.temp_A, self.intermediate_A, self.fake_A = self.netG_B(self.real_B)  # G_B(B)
-        print("4")
-        self.temp_rec_B, self.intermediate_rec_B, self.rec_B = self.netG_A(self.fake_A)   # G_A(G_B(B))
+        self.intermediate_B, self.fake_B = self.netG_A(self.real_A)  # G_A(A)
+        # print("allocated memory / model forward net G_A(A)", torch.cuda.memory_allocated()/1024/1024)
 
-        print("rescaled mid-feature")
-        print(self.intermediate_B)
+        # print("self.fake_B, \n", self.fake_B)
+        self.intermediate_rec_A, self.rec_A = self.netG_B(self.fake_B)   # G_B(G_A(A))
+        # print("allocated memory / model forward net G_B(G_A(A))", torch.cuda.memory_allocated()/1024/1024)
 
-        print("mid-feature")
-        print(self.temp_B)
+        self.intermediate_A, self.fake_A = self.netG_B(self.real_B)  # G_B(B)
+        # print("allocated memory / model forward net G_B(B)", torch.cuda.memory_allocated()/1024/1024)
+
+        self.intermediate_rec_B, self.rec_B = self.netG_A(self.fake_A)   # G_A(G_B(B))
+        # print("allocated memory / model forward net G_A(G_B(B))", torch.cuda.memory_allocated()/1024/1024)
+
+#        print("rescaled mid-feature")
+#        print(self.intermediate_B)
+
+#       print("mid-feature")
+#        print(self.temp_B)
 
 
     def backward_D_basic(self, netD, real, fake):
@@ -170,25 +171,37 @@ class CycleGANModel(BaseModel):
         # Combined loss and calculate gradients
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         loss_D.backward()
+        del pred_real, pred_fake, loss_D_fake, loss_D_real
+        torch.cuda.empty_cache()
+        # print("allocated memory / -backward D basic", torch.cuda.memory_allocated()/1024/1024)
+
         return loss_D
 
     def backward_D_A(self):
         """Calculate GAN loss for discriminator D_A"""
         fake_B = self.fake_B_pool.query(self.fake_B)
         self.loss_D_A = self.backward_D_basic(self.netD_A, self.real_B, fake_B)
+        del fake_B
+        torch.cuda.empty_cache()
+        # print("allocated memory / -backward D basic", torch.cuda.memory_allocated()/1024/1024)
+
 
     def backward_D_B(self):
         """Calculate GAN loss for discriminator D_B"""
         fake_A = self.fake_A_pool.query(self.fake_A)
         self.loss_D_B = self.backward_D_basic(self.netD_B, self.real_A, fake_A)
+        del fake_A
+        torch.cuda.empty_cache()
+        # print("allocated memory / -backward D basic", torch.cuda.memory_allocated()/1024/1024)
+
 
     def backward_G(self):
         """Calculate the loss for generators G_A and G_B"""
         lambda_idt = self.opt.lambda_identity
         lambda_A = self.opt.lambda_A
         lambda_B = self.opt.lambda_B
-        lambda_C = self.opt.lambda_C
-        print("lambda_C is ", lambda_C)
+        lambda_HSIC = self.opt.lambda_HSIC
+        print("lambda_HSIC is ", lambda_HSIC)
         width_x = self.opt.width_x
         width_y = self.opt.width_y
 
@@ -214,34 +227,35 @@ class CycleGANModel(BaseModel):
         # Backward cycle loss || G_A(G_B(B)) - B||
         self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
 
-        print("allocated to model 5", torch.cuda.memory_allocated()/1024/1024)
+        # print("cuda allocated memory after gan, cycle loss computation", torch.cuda.memory_allocated()/1024/1024)
 
         
         # Forward negative normalized HSIC
         if self.opt.fix_kernel_width in ['False','false']:
-            self.loss_HSIC_B = -normalized_HSIC(self.intermediate_B, self.fake_B) * lambda_C
-            print("HSIC forward", self.loss_HSIC_B)
+            self.loss_HSIC_B = -normalized_HSIC(self.intermediate_B, self.fake_B) * lambda_HSIC
+            # print("HSIC forward", self.loss_HSIC_B)
 
             # Backward negative normalized HSIC
-            self.loss_HSIC_A = -normalized_HSIC(self.intermediate_A, self.fake_A) * lambda_C
-            print("HSIC backward", self.loss_HSIC_A)
+            self.loss_HSIC_A = -normalized_HSIC(self.intermediate_A, self.fake_A) * lambda_HSIC
+            # print("HSIC backward", self.loss_HSIC_A)
 
         elif self.opt.fix_kernel_width in ['True', 'true']:
-            self.loss_HSIC_B = -normalized_HSIC_fixed(self.intermediate_B, self.fake_B, width_x, width_y) * lambda_C
-            print("HSIC forward", self.loss_HSIC_B)
+            self.loss_HSIC_B = -normalized_HSIC_fixed(self.intermediate_B, self.fake_B, width_x, width_y) * lambda_HSIC
+            # print("HSIC forward", self.loss_HSIC_B)
 
-            self.loss_HSIC_A = -normalized_HSIC_fixed(self.intermediate_A, self.fake_A, width_y, width_x) * lambda_C
-            print("HSIC backward", self.loss_HSIC_A)
+            self.loss_HSIC_A = -normalized_HSIC_fixed(self.intermediate_A, self.fake_A, width_y, width_x) * lambda_HSIC
+            # print("HSIC backward", self.loss_HSIC_A)
 
         else :
             raise Exception('--fix_kernel_width should be specified.')
 
-        print("allocated to model 6", torch.cuda.memory_allocated()/1024/1024)
+        # print("cuda allocated memory after HSIC loss computation ", torch.cuda.memory_allocated()/1024/1024)
 
         # combined loss and calculate gradients
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B + self.loss_HSIC_A + self.loss_HSIC_B
         print("self.loss_G", self.loss_G)
         self.loss_G.backward()
+
 
     def optimize_parameters(self):
         """Calculate losses, gradients, and update network weights; called in every training iteration"""
