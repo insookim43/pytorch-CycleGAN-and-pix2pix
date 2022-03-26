@@ -24,7 +24,7 @@ from data import create_dataset
 from models import create_model
 from util.visualizer import Visualizer
 import torch
-#from torchsummary import summary
+from torchsummary import summary
 
 
 if __name__ == '__main__':
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
-    # summary(model.netG_A, input_size=(3, 32, 32))
+    summary(model.netG_A, input_size=(3, 32, 32))
 
     visualizer = Visualizer(opt)   # create a visualizer that display/save images and plots
     total_iters = 0                # the total number of training iterations
