@@ -24,7 +24,7 @@ from data import create_dataset
 from models import create_model
 from util.visualizer import Visualizer
 import torch
-from torchsummary import summary
+#from torchsummary import summary
 
 
 if __name__ == '__main__':
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
-    summary(model.netG_A, input_size=(3, 32, 32))
+    #summary(model.netG_A, input_size=(3, 32, 32))
 
     visualizer = Visualizer(opt)   # create a visualizer that display/save images and plots
     total_iters = 0                # the total number of training iterations
@@ -79,14 +79,14 @@ if __name__ == '__main__':
 
             print("model module state_dict.keys", model.netG_A.module.state_dict().keys())
 
-            del model.real_A, model.real_B, \
-                model.fake_B, model.fake_A, \
-                model.intermediate_B, model.intermediate_rec_A, model.rec_A, \
-                model.intermediate_A, model.intermediate_rec_B, model.rec_B, \
-                model.loss_D_A, model.loss_D_B, \
-                model.loss_G_A, model.loss_G_B, \
-                model.loss_cycle_A, model.loss_cycle_B, \
-                model.loss_HSIC_A, model.loss_HSIC_B
+            # del model.real_A, model.real_B, \
+            #     model.fake_B, model.fake_A, \
+            #     model.intermediate_B, model.intermediate_rec_A, model.rec_A, \
+            #     model.intermediate_A, model.intermediate_rec_B, model.rec_B, \
+            #     model.loss_D_A, model.loss_D_B, \
+            #     model.loss_G_A, model.loss_G_B, \
+            #     model.loss_cycle_A, model.loss_cycle_B, \
+            #     model.loss_HSIC_A, model.loss_HSIC_B
             iter_data_time = time.time()
             torch.cuda.empty_cache()
             #print("cuda allocated memory after deleting loss variable and outputs ", torch.cuda.memory_allocated() / 1024 / 1024)
