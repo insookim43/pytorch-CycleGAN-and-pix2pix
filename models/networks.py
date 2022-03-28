@@ -378,8 +378,6 @@ class ResnetGenerator(nn.Module):
             latter_model += [nn.Conv2d(int(ngf/2), output_nc, kernel_size=7, padding=0)]
             latter_model += [nn.Tanh()]
 
-
-
         else :
             n_downsampling = 3
             for i in range(n_downsampling):  # add downsampling layers

@@ -77,6 +77,8 @@ if __name__ == '__main__':
                 save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
                 model.save_networks(save_suffix)
 
+            print("model module state_dict.keys", model.netG_A.module.state_dict().keys())
+
             del model.real_A, model.real_B, \
                 model.fake_B, model.fake_A, \
                 model.intermediate_B, model.intermediate_rec_A, model.rec_A, \

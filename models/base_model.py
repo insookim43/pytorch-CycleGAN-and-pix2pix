@@ -129,8 +129,14 @@ class BaseModel(ABC):
         """Return visualization images. train.py will display these images with visdom, and save the images to a HTML"""
         visual_ret = OrderedDict()
         for name in self.visual_names:
+            print("name", name)
             if isinstance(name, str):
-                visual_ret[name] = getattr(self, name)
+                if name == 'fake':
+                    print("is fake...... and shape is ", len(getattr(self,name)), getattr(self,name)[0].shape, getattr(self, name)[1].shape)
+                    visual_ret[name] = getattr(self, name)[1]
+                elif name == 'real' :
+                    print("is real")
+                    visual_ret[name] = getattr(self, name)
         return visual_ret
 
     def get_current_losses(self):
@@ -190,16 +196,13 @@ class BaseModel(ABC):
                 # if you are using PyTorch newer than 0.4 (e.g., built from
                 # GitHub source), you can remove str() on self.device
                 state_dict = torch.load(load_path, map_location=str(self.device))
-                print(state_dict.keys())
+                print("pretrained models keys, state_dict.keys()", state_dict.keys())
                 if hasattr(state_dict, '_metadata'):
                     del state_dict._metadata
 
                 # patch InstanceNorm checkpoints prior to 0.4
-                for key in list(state_dict.keys()):  # need to copy keys here because we mutate in loop
-                    self.__patch_instance_norm_state_dict(state_dict, net, key.split('.'))
-
-                print("net state dict를 뽑아보자")
-                print(net.state_dict())
+                #for key in list(state_dict.keys()):  # need to copy keys here because we mutate in loop
+                #    self.__patch_instance_norm_state_dict(state_dict, net, key.split('.'))
 
                 net.load_state_dict(state_dict)
 
