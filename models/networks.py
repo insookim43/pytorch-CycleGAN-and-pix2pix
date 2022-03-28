@@ -440,7 +440,7 @@ class ResnetGenerator(nn.Module):
 
         out = self.image_generator(destination_domain_feature)
         #print("out, \n", out)
-        return (departure_domain_feature_shifted * departure_feature_inv_norm, destination_domain_feature_shifted * destination_feature_inv_norm), out
+        return departure_domain_feature_shifted * departure_feature_inv_norm, destination_domain_feature_shifted * destination_feature_inv_norm, out
 
 '''
 ### backup of generator

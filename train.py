@@ -60,6 +60,13 @@ if __name__ == '__main__':
             model.set_input(data)         # unpack data from dataset and apply preprocessing
             model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
 
+            # debug purpose
+            save_result = total_iters % opt.update_html_freq == 0
+            model.compute_visuals()
+            visualizer.display_current_results(model.get_current_visuals(), epoch, save_result)
+            #
+
+
             if total_iters % opt.display_freq == 0:   # display images on visdom and save images to a HTML file
                 save_result = total_iters % opt.update_html_freq == 0
                 model.compute_visuals()
@@ -77,7 +84,6 @@ if __name__ == '__main__':
                 save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
                 model.save_networks(save_suffix)
 
-            print("model module state_dict.keys", model.netG_A.module.state_dict().keys())
 
             # del model.real_A, model.real_B, \
             #     model.fake_B, model.fake_A, \

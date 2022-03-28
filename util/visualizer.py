@@ -122,6 +122,7 @@ class Visualizer():
             ncols = self.ncols
             if ncols > 0:        # show all the images in one visdom panel
                 ncols = min(ncols, len(visuals))
+                print(type(next(iter( visuals.values() ) ) ) , "type ")
                 h, w = next(iter(visuals.values())).shape[:2]
                 table_css = """<style>
                         table {border-collapse: separate; border-spacing: 4px; white-space: nowrap; text-align: center}

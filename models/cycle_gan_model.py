@@ -131,17 +131,17 @@ class CycleGANModel(BaseModel):
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
-        (self.forward_departure, self.forward_destination), self.fake_B = self.netG_A(self.real_A)  # G_A(A)
+        self.forward_departure, self.forward_destination, self.fake_B = self.netG_A(self.real_A)  # G_A(A)
         # print("allocated memory / model forward net G_A(A)", torch.cuda.memory_allocated()/1024/1024)
 
         # print("self.fake_B, \n", self.fake_B)
-        (_, _), self.rec_A = self.netG_B(self.fake_B)   # G_B(G_A(A))
+        tmp, tmp2, self.rec_A = self.netG_B(self.fake_B)   # G_B(G_A(A))
         # print("allocated memory / model forward net G_B(G_A(A))", torch.cuda.memory_allocated()/1024/1024)
 
-        (self.backward_departure, self.backward_destination), self.fake_A = self.netG_B(self.real_B)  # G_B(B)
+        self.backward_departure, self.backward_destination, self.fake_A = self.netG_B(self.real_B)  # G_B(B)
         # print("allocated memory / model forward net G_B(B)", torch.cuda.memory_allocated()/1024/1024)
 
-        (_, _), self.rec_B = self.netG_A(self.fake_A)   # G_A(G_B(B))
+        tmp3, tmp4, self.rec_B = self.netG_A(self.fake_A)   # G_A(G_B(B))
         # print("allocated memory / model forward net G_A(G_B(B))", torch.cuda.memory_allocated()/1024/1024)
 
 #        print("rescaled mid-feature")

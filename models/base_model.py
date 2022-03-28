@@ -129,13 +129,18 @@ class BaseModel(ABC):
         """Return visualization images. train.py will display these images with visdom, and save the images to a HTML"""
         visual_ret = OrderedDict()
         for name in self.visual_names:
-            print("name", name)
+#            print("name", name)
             if isinstance(name, str):
                 if name == 'fake':
                     print("is fake...... and shape is ", len(getattr(self,name)), getattr(self,name)[0].shape, getattr(self, name)[1].shape)
-                    visual_ret[name] = getattr(self, name)[1]
+
+                    visual_ret[name] = getattr(self, name)[2] # [1]
+#                    visual_ret[name] = getattr(self, name) [1]
+
                 elif name == 'real' :
                     print("is real")
+                    visual_ret[name] = getattr(self, name)
+                else:
                     visual_ret[name] = getattr(self, name)
         return visual_ret
 
