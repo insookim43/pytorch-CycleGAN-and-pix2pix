@@ -353,11 +353,12 @@ class ResnetGenerator(nn.Module):
                           nn.ReLU(True)]
 
             mult = 2 ** n_downsampling
-            departure_domain_feature_model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
+            destination_domain_feature_model = []
+
+            destination_domain_feature_model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
                             use_bias=use_bias)]
 
 
-            destination_domain_feature_model = []
 
             for i in range(n_blocks-1):       # add ResNet blocks
                 destination_domain_feature_model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
@@ -442,8 +443,142 @@ class ResnetGenerator(nn.Module):
         #print("out, \n", out)
         return departure_domain_feature_shifted * departure_feature_inv_norm, destination_domain_feature_shifted * destination_feature_inv_norm, out
 
+"""
+class ResnetGenerator(nn.Module):
+    ###Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
+
+    ###We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
+    
+
+    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, padding_type='reflect', if_forward=True):
+        '''Construct a Resnet-based generator
+
+        Parameters:
+            input_nc (int)      -- the number of channels in input images
+            output_nc (int)     -- the number of channels in output images
+            ngf (int)           -- the number of filters in the last conv layer
+            norm_layer          -- normalization layer
+            use_dropout (bool)  -- if use dropout layers
+            n_blocks (int)      -- the number of ResNet blocks
+            padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
+            if_forward(bool)    -- CIFAR>ImageNet, True if forward(cifar>ImageNet), else False
+        '''
+        assert(n_blocks >= 0)
+        super(ResnetGenerator, self).__init__()
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm2d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm2d
+
+        departure_domain_feature_model = [nn.ReflectionPad2d(3),
+                 nn.Conv2d(input_nc, ngf, kernel_size=7, padding=0, bias=use_bias),
+                 norm_layer(ngf),
+                 nn.ReLU(True)]
+
+        # forward generator
+        if if_forward == True:
+            n_downsampling = 2
+            for i in range(n_downsampling):  # add downsampling layers
+                mult = 2 ** i
+                departure_domain_feature_model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=1, padding=0, bias=use_bias),
+                          norm_layer(ngf * mult * 2),
+                          nn.ReLU(True)]
+
+            mult = 2 ** n_downsampling
+            departure_domain_feature_model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
+                            use_bias=use_bias)]
+
+
+            destination_domain_feature_model = []
+
+            for i in range(n_blocks-1):       # add ResNet blocks
+                destination_domain_feature_model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
+
+
+            image_generator = []
+            for i in range(n_downsampling):  # add upsampling layers
+                mult = 2 ** (n_downsampling - i)
+                image_generator += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                             kernel_size=3, stride=2,
+                                             padding=1, output_padding=1,
+                                             bias=use_bias),
+                          norm_layer(int(ngf * mult / 2)),
+                          nn.ReLU(True)]
+
+            image_generator += [nn.ConvTranspose2d(ngf,int(ngf  / 2),
+                                             kernel_size=3, stride=2,
+                                             padding=1, output_padding=1,
+                                             bias=use_bias),
+                          norm_layer(int(ngf / 2)),
+                          nn.ReLU(True)]
+
+            image_generator += [nn.ReflectionPad2d(3)]
+            image_generator += [nn.Conv2d(int(ngf/2), output_nc, kernel_size=7, padding=0)]
+            image_generator += [nn.Tanh()]
+
+        # backward generator
+        else :
+            n_downsampling = 3
+            for i in range(n_downsampling):  # add downsampling layers
+                mult = 2 ** i
+                departure_domain_feature_model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=1, bias=use_bias),
+                          norm_layer(ngf * mult * 2),
+                          nn.ReLU(True)]
+
+            mult = 2 ** n_downsampling
+            departure_domain_feature_model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
+                                use_bias=use_bias)]
+
+            destination_domain_feature_model = []
+            for i in range(n_blocks-1):  # add ResNet blocks
+                destination_domain_feature_model += [
+                    ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
+                                use_bias=use_bias)]
+            image_generator = []
+            for i in range(n_downsampling - 1):  # add upsampling layers
+                mult = 2 ** (n_downsampling - i)
+                image_generator += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                             kernel_size=3, stride=1,
+                                             padding=0, output_padding=0,
+                                             bias=use_bias),
+                          norm_layer(int(ngf * mult / 2)),
+                          nn.ReLU(True)]
+            image_generator += [nn.ReflectionPad2d(3)]
+            image_generator += [nn.Conv2d(ngf * 2, output_nc, kernel_size=7, padding=0)]
+            image_generator += [nn.Tanh()]
+
+        self.departure_domain_feature_model = nn.Sequential(*departure_domain_feature_model)
+        self.destination_domain_feature_model = nn.Sequential(*destination_domain_feature_model)
+        self.image_generator = nn.Sequential(*image_generator)
+
+
+    def forward(self, x):
+        '''Standard forward'''
+        departure_domain_feature = self.departure_domain_feature_model(x)
+
+        departure_mu = torch.mean(departure_domain_feature, dim=(2, 3), keepdim=True)
+        departure_sd = torch.std(departure_domain_feature, dim=(2, 3), keepdim=True)
+        departure_sd = torch.maximum(departure_sd, torch.tensor(torch.finfo(torch.float32).eps, dtype=torch.float32))
+        departure_domain_feature_shifted = departure_domain_feature - departure_mu
+        departure_feature_inv_norm = torch.reciprocal(departure_sd)
+
+        destination_domain_feature = self.destination_domain_feature_model(departure_domain_feature)
+
+        destination_mu = torch.mean(destination_domain_feature, dim=(2, 3), keepdim=True)
+        destination_sd = torch.std(destination_domain_feature, dim=(2, 3), keepdim=True)
+        destination_sd = torch.maximum(destination_sd, torch.tensor(torch.finfo(torch.float32).eps, dtype=torch.float32))
+        destination_domain_feature_shifted = destination_domain_feature - destination_mu
+        destination_feature_inv_norm = torch.reciprocal(destination_sd)
+
+        out = self.image_generator(destination_domain_feature)
+        #print("out, \n", out)
+        return departure_domain_feature_shifted * departure_feature_inv_norm, destination_domain_feature_shifted * destination_feature_inv_norm, out
+"""
+
+
+
 '''
-### backup of generator
+### backup of generator - 9 layer feature and last output image
 class ResnetGenerator(nn.Module):
     """Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
 
