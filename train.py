@@ -45,7 +45,7 @@ if __name__ == '__main__':
         if epoch >= 10:
             model.opt.lambda_HSIC += 0.01
         epoch_start_time = time.time()  # timer for entire epoch
-        print(epoch, "epoch" )
+        print(epoch, "epoch")
         iter_data_time = time.time()    # timer for data loading per iteration
         epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
         visualizer.reset()              # reset the visualizer: make sure it saves the results to HTML at least once every epoch
@@ -59,7 +59,6 @@ if __name__ == '__main__':
             epoch_iter += opt.batch_size
             model.set_input(data)         # unpack data from dataset and apply preprocessing
             model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
-
 
             if total_iters % opt.display_freq == 0:   # display images on visdom and save images to a HTML file
                 save_result = total_iters % opt.update_html_freq == 0
@@ -76,7 +75,18 @@ if __name__ == '__main__':
             if total_iters % opt.save_latest_freq == 0:   # cache our latest model every <save_latest_freq> iterations
                 print('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters))
                 save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
-                model.save_networks(save_suffix)
+                model.save_networks(save_suffix, model.kernel_width)
+
+            ### debugging purpose ###
+            model.print_kernel_widths_statistics()
+            print ("model.get_kernel_width()", model.get_kernel_width())
+            model.set_kernel_width(model.get_kernel_width())
+            model.reset_epoch_kernel_width()
+
+            print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
+            model.save_networks('latest', model.kernel_width)
+            model.save_networks(epoch, model.kernel_width)
+            ##########
 
 
             # del model.real_A, model.real_B, \
@@ -91,10 +101,15 @@ if __name__ == '__main__':
             torch.cuda.empty_cache()
             #print("cuda allocated memory after deleting loss variable and outputs ", torch.cuda.memory_allocated() / 1024 / 1024)
 
+        # get and reset kernel width
+        model.print_kernel_widths_statistics()
+        model.set_kernel_width(model.get_kernel_width())
+        model.reset_epoch_kernel_width()
+
 
         if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
             print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
-            model.save_networks('latest')
-            model.save_networks(epoch)
+            model.save_networks('latest', model.kernel_width)
+            model.save_networks(epoch, model.kernel_width)
 
         print('End of epoch %d / %d \t Time Taken: %d sec' % (epoch, opt.n_epochs + opt.n_epochs_decay, time.time() - epoch_start_time))

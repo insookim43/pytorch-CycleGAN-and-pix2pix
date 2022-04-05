@@ -132,13 +132,13 @@ class BaseModel(ABC):
 #            print("name", name)
             if isinstance(name, str):
                 if name == 'fake':
-                    print("is fake...... and shape is ", len(getattr(self,name)), getattr(self,name)[0].shape, getattr(self, name)[1].shape)
+#                    print("is fake...... and shape is ", len(getattr(self,name)), getattr(self,name)[0].shape, getattr(self, name)[1].shape)
 
-                    visual_ret[name] = getattr(self, name)[2] # [1]
-#                    visual_ret[name] = getattr(self, name) [1]
+#                    visual_ret[name] = getattr(self, name)[2] # [1]
+                    visual_ret[name] = getattr(self, name) [1]
 
                 elif name == 'real' :
-                    print("is real")
+#                    print("is real")
                     visual_ret[name] = getattr(self, name)
                 else:
                     visual_ret[name] = getattr(self, name)
@@ -152,6 +152,7 @@ class BaseModel(ABC):
                 errors_ret[name] = float(getattr(self, 'loss_' + name))  # float(...) works for both scalar tensor and float number
         return errors_ret
 
+    '''
     def save_networks(self, epoch):
         """Save all the networks to the disk.
 
@@ -169,6 +170,15 @@ class BaseModel(ABC):
                     net.cuda(self.gpu_ids[0])
                 else:
                     torch.save(net.cpu().state_dict(), save_path)
+    '''
+    def save_networks(self, epoch, kernel_width):
+        """Save all the networks to the disk. also metadata like HSIC kernel width on the epoch.
+
+        Parameters:
+            epoch (int) -- current epoch; used in the file name '%s_net_%s.pth' % (epoch, name)
+            kernel_width (float) -- current epoch's kernel width of forward_x i.e. (domain A)
+        """
+        pass
 
     def __patch_instance_norm_state_dict(self, state_dict, module, keys, i=0):
         """Fix InstanceNorm checkpoints incompatibility (prior to 0.4)"""
@@ -200,10 +210,23 @@ class BaseModel(ABC):
                 print('loading the model from %s' % load_path)
                 # if you are using PyTorch newer than 0.4 (e.g., built from
                 # GitHub source), you can remove str() on self.device
-                state_dict = torch.load(load_path, map_location=str(self.device))
-                print("pretrained models keys, state_dict.keys()", state_dict.keys())
-                if hasattr(state_dict, '_metadata'):
-                    del state_dict._metadata
+                checkpoint = torch.load(load_path, map_location=str(self.device))
+                if 'kernel_width' in checkpoint.keys():
+                    print("kernel width is stored in pretrained model checkpoint. checkpoint.keys() are: ", checkpoint.keys())
+                    print("kernel_width = ", checkpoint['kernel_width'])
+                    state_dict = checkpoint['model_state_dict']
+                    net.kernel_width = checkpoint['kernel_width']
+                    if hasattr(checkpoint['model_state_dict'], '_metadata'):
+                        del checkpoint['model_state_dict']._metadata
+
+                elif 'kernel_width' not in checkpoint.keys():
+                    print("pretrained model checkpoint is dictionary. kernel_width is not in checkpoint.keys() are :", checkpoint.keys())
+                    state_dict = checkpoint
+                    if hasattr(checkpoint, '_metadata'):
+                        del checkpoint._metadata
+                else :
+                    print("? checkpoint type is", type(checkpoint))
+
 
                 # patch InstanceNorm checkpoints prior to 0.4
                 #for key in list(state_dict.keys()):  # need to copy keys here because we mutate in loop

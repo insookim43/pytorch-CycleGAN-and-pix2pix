@@ -187,7 +187,7 @@ def hsic_fixed(X, Y, width_x, width_y):
 
 	return (testStat, (width_x, width_y))
 
-def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'):
+def negative_normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'):
 	"""
 		X, Y are numpy vectors with row - sample, col - dim
 		alph is the significance level
@@ -332,9 +332,9 @@ def normalized_HSIC(X, Y, return_width=False, kernel_param_average_method='mean'
 
 
 	if return_width == True:
-		return normalized_HSIC, (width_x, width_y)
+		return -normalized_HSIC, (width_x.detach().cpu().numpy(), width_y.detach().cpu().numpy())
 	elif return_width == False:
-		return normalized_HSIC
+		return -normalized_HSIC
 
 def normalized_HSIC_fixed(X, Y, width_x, width_y, return_width=False):
 	#print(X.shape, "X.shape")
