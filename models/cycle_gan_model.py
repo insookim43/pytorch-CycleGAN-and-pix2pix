@@ -378,47 +378,57 @@ class CycleGANModel(BaseModel):
             self.optimizers.append(self.optimizer_D)
 
         self.opt.fix_kernel_width = opt.fix_kernel_width
-        self.epoch_kernel_width_list = [] # each epoch's kernel width list is stored to compute kernel width of training data, later used in testing stage.
-        self.temp_epoch_kernel_width_list_forward_y = []
-        self.temp_epoch_kernel_width_list_backward_x = []
-        self.temp_epoch_kernel_width_list_backward_y = []
-        self.kernel_width = 0 # store epoch kernel width list's average.
+        self.epoch_kernel_width_list_forward_x = [] # each epoch's kernel width list is stored to compute kernel width of training data, later used in testing stage.
+        self.epoch_kernel_width_list_forward_y = []
+        self.epoch_kernel_width_list_backward_x = []
+        self.epoch_kernel_width_list_backward_y = []
+        self.kernel_width_forward_x = 0 # store epoch kernel width list's average.
+        self.kernel_width_forward_y = 0
+        self.kernel_width_backward_x = 0
+        self.kernel_width_backward_y = 0
+
         print(self.opt.fix_kernel_width ,"self.opt.fix_kernel_width is ###########################")
         # print("allocated memory / model class init", torch.cuda.memory_allocated()/1024/1024)
     def print_kernel_widths_statistics(self):
-        forward_width_x = np.mean(self.epoch_kernel_width_list)
-        forward_width_x_std = np.std(self.epoch_kernel_width_list)
-        forward_width_y = np.mean(self.temp_epoch_kernel_width_list_forward_y)
-        forward_width_y_std = np.std(self.temp_epoch_kernel_width_list_forward_y)
-        backward_width_x = np.mean(self.temp_epoch_kernel_width_list_backward_x)
-        backward_width_x_std = np.std(self.temp_epoch_kernel_width_list_backward_x)
-        backward_width_y = np.mean(self.temp_epoch_kernel_width_list_backward_y)
-        backward_width_y_std = np.std(self.temp_epoch_kernel_width_list_backward_y)
+        forward_width_x = np.mean(self.epoch_kernel_width_list_forward_x)
+        forward_width_x_std = np.std(self.epoch_kernel_width_list_forward_x)
+        forward_width_y = np.mean(self.epoch_kernel_width_list_forward_y)
+        forward_width_y_std = np.std(self.epoch_kernel_width_list_forward_y)
+        backward_width_x = np.mean(self.epoch_kernel_width_list_backward_x)
+        backward_width_x_std = np.std(self.epoch_kernel_width_list_backward_x)
+        backward_width_y = np.mean(self.epoch_kernel_width_list_backward_y)
+        backward_width_y_std = np.std(self.epoch_kernel_width_list_backward_y)
         print("forward_width_x (mean,std) : ({0}, {1}), forward_width_y (mean,std) : ({2}, {3}), "
-              "backward_width_x (mean,std) : ({4}, {5}), backward_width_y (mean,std) : ({6}, {7})".format(forward_width_x, forward_width_x_std,
-              forward_width_y, forward_width_y_std, backward_width_x, backward_width_x_std,
-              backward_width_y, backward_width_y_std))
+              "backward_width_x (mean,std) : ({4}, {5}), backward_width_y (mean,std) : ({6}, {7})".format(
+              forward_width_x, forward_width_x_std, forward_width_y, forward_width_y_std,
+              backward_width_x, backward_width_x_std, backward_width_y, backward_width_y_std))
 
-    def get_kernel_width(self):
-        return np.mean(self.epoch_kernel_width_list)
+    def get_kernel_widths(self):
+        return np.mean(self.epoch_kernel_width_list_forward_x),\
+        np.mean(self.epoch_kernel_width_list_forward_y),\
+        np.mean(self.epoch_kernel_width_list_backward_x),\
+        np.mean(self.epoch_kernel_width_list_backward_y)
 
-    def set_kernel_width(self, kernel_width):
-        self.kernel_width = kernel_width
+    def set_kernel_widths(self, kernel_width):
+        self.kernel_width_forward_x = kernel_width[0]
+        self.kernel_width_forward_y = kernel_width[1]
+        self.kernel_width_backward_x = kernel_width[2]
+        self.kernel_width_backward_y = kernel_width[3]
 
     def reset_epoch_kernel_width(self):
-        self.epoch_kernel_width_list = []
-        self.temp_epoch_kernel_width_list_forward_y = []
-        self.temp_epoch_kernel_width_list_backward_x = []
-        self.temp_epoch_kernel_width_list_backward_y = []
+        self.epoch_kernel_width_list_forward_x = []
+        self.epoch_kernel_width_list_forward_y = []
+        self.epoch_kernel_width_list_backward_x = []
+        self.epoch_kernel_width_list_backward_y = []
 
-    def save_networks(self, epoch, kernel_width):
+    def save_networks(self, epoch):
         """Save all the networks to the disk.
 
         Parameters:
             epoch (int) -- current epoch; used in the file name '%s_net_%s.pth' % (epoch, name)
             kernel_width (float) -- current epoch's kernel width of forward_x i.e. (domain A)
         """
-        print("saving networks...., kernel_width : ", kernel_width)
+        print("saving networks...., kernel_width forward_x : ", self.kernel_width_forward_x)
         for name in self.model_names:
             if isinstance(name, str):
                 save_filename = '%s_net_%s.pth' % (epoch, name)
@@ -427,11 +437,17 @@ class CycleGANModel(BaseModel):
 
                 if len(self.gpu_ids) > 0 and torch.cuda.is_available():
                     torch.save({'model_state_dict': net.module.cpu().state_dict(),
-                                'kernel_width': kernel_width}, save_path)
+                                'kernel_width_forward_x': self.kernel_width_forward_x,
+                                'kernel_width_forward_y': self.kernel_width_forward_y,
+                                'kernel_width_backward_x': self.kernel_width_backward_x,
+                                'kernel_width_backward_y': self.kernel_width_backward_y}, save_path)
                     net.cuda(self.gpu_ids[0])
                 else:
                     torch.save({'model_state_dict': net.cpu().state_dict(),
-                                'kernel_width': kernel_width}, save_path)
+                                'kernel_width_forward_x': self.kernel_width_forward_x,
+                                'kernel_width_forward_y': self.kernel_width_forward_y,
+                                'kernel_width_backward_x': self.kernel_width_backward_x,
+                                'kernel_width_backward_y': self.kernel_width_backward_y}, save_path)
 
 
     def set_input(self, input):
@@ -561,11 +577,10 @@ class CycleGANModel(BaseModel):
             self.loss_HSIC_A = negative_normalized_HSIC_A * lambda_HSIC
             # print("HSIC backward", self.loss_HSIC_A)
 
-            # for inference stage, only forward width_x_forward is needed. others are of debugging purpose.
-            self.epoch_kernel_width_list.append(width_x_forward)
-            self.temp_epoch_kernel_width_list_forward_y.append(width_y_forward)
-            self.temp_epoch_kernel_width_list_backward_x.append(width_x_backward)
-            self.temp_epoch_kernel_width_list_backward_y.append(width_y_backward)
+            self.epoch_kernel_width_list_forward_x.append(width_x_forward)
+            self.epoch_kernel_width_list_forward_y.append(width_y_forward)
+            self.epoch_kernel_width_list_backward_x.append(width_x_backward)
+            self.epoch_kernel_width_list_backward_y.append(width_y_backward)
 
         elif self.opt.fix_kernel_width in ['True', 'true']:
             self.loss_HSIC_B = -normalized_HSIC_fixed(self.intermediate_B, self.fake_B, width_x, width_y) * lambda_HSIC

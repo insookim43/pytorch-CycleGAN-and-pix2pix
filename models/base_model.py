@@ -211,15 +211,18 @@ class BaseModel(ABC):
                 # if you are using PyTorch newer than 0.4 (e.g., built from
                 # GitHub source), you can remove str() on self.device
                 checkpoint = torch.load(load_path, map_location=str(self.device))
-                if 'kernel_width' in checkpoint.keys():
+                if 'kernel_width_forward_x' in checkpoint.keys():
                     print("kernel width is stored in pretrained model checkpoint. checkpoint.keys() are: ", checkpoint.keys())
-                    print("kernel_width = ", checkpoint['kernel_width'])
+                    print("kernel_width = ", checkpoint['kernel_width_forward_x'])
                     state_dict = checkpoint['model_state_dict']
-                    net.kernel_width = checkpoint['kernel_width']
+                    net.kernel_width_forward_x = checkpoint['kernel_width_forward_x']
+                    net.kernel_width_forward_y = checkpoint['kernel_width_forward_y']
+                    net.kernel_width_backward_x = checkpoint['kernel_width_backward_x']
+                    net.kernel_width_backward_y = checkpoint['kernel_width_backward_y']
                     if hasattr(checkpoint['model_state_dict'], '_metadata'):
                         del checkpoint['model_state_dict']._metadata
 
-                elif 'kernel_width' not in checkpoint.keys():
+                elif 'kernel_width_forward_x' not in checkpoint.keys():
                     print("pretrained model checkpoint is dictionary. kernel_width is not in checkpoint.keys() are :", checkpoint.keys())
                     state_dict = checkpoint
                     if hasattr(checkpoint, '_metadata'):

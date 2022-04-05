@@ -75,41 +75,35 @@ if __name__ == '__main__':
             if total_iters % opt.save_latest_freq == 0:   # cache our latest model every <save_latest_freq> iterations
                 print('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters))
                 save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
-                model.save_networks(save_suffix, model.kernel_width)
+                model.save_networks(save_suffix)
 
-            ### debugging purpose ###
-            model.print_kernel_widths_statistics()
-            print ("model.get_kernel_width()", model.get_kernel_width())
-            model.set_kernel_width(model.get_kernel_width())
-            model.reset_epoch_kernel_width()
+            del model.real_A, model.real_B, \
+                model.fake_B, model.fake_A, \
+                model.loss_D_A, model.loss_D_B, \
+                model.loss_G_A, model.loss_G_B, \
+                model.loss_cycle_A, model.loss_cycle_B, \
+                model.loss_HSIC_A, model.loss_HSIC_B
+            # model.intermediate_B, model.intermediate_rec_A, model.rec_A, \
+            # model.intermediate_A, model.intermediate_rec_B, model.rec_B, \
 
-            print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
-            model.save_networks('latest', model.kernel_width)
-            model.save_networks(epoch, model.kernel_width)
-            ##########
-
-
-            # del model.real_A, model.real_B, \
-            #     model.fake_B, model.fake_A, \
-            #     model.intermediate_B, model.intermediate_rec_A, model.rec_A, \
-            #     model.intermediate_A, model.intermediate_rec_B, model.rec_B, \
-            #     model.loss_D_A, model.loss_D_B, \
-            #     model.loss_G_A, model.loss_G_B, \
-            #     model.loss_cycle_A, model.loss_cycle_B, \
-            #     model.loss_HSIC_A, model.loss_HSIC_B
             iter_data_time = time.time()
             torch.cuda.empty_cache()
             #print("cuda allocated memory after deleting loss variable and outputs ", torch.cuda.memory_allocated() / 1024 / 1024)
+        # end for iter
 
         # get and reset kernel width
+        print ("end of one epoch")
         model.print_kernel_widths_statistics()
-        model.set_kernel_width(model.get_kernel_width())
+        model.set_kernel_widths(model.get_kernel_widths())
         model.reset_epoch_kernel_width()
 
 
         if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
             print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
-            model.save_networks('latest', model.kernel_width)
-            model.save_networks(epoch, model.kernel_width)
+            model.print_kernel_widths_statistics()
+            model.save_networks('latest')
+            model.save_networks(epoch)
 
         print('End of epoch %d / %d \t Time Taken: %d sec' % (epoch, opt.n_epochs + opt.n_epochs_decay, time.time() - epoch_start_time))
+
+    # end for epoch
