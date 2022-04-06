@@ -5,7 +5,7 @@ import ntpath
 import time
 from . import util, _html
 from subprocess import Popen, PIPE
-
+from pathlib import Path
 
 try:
     import wandb
@@ -31,8 +31,18 @@ def save_images(webpage, visuals, image_path, aspect_ratio=1.0, width=256, use_w
     This function will save images stored in 'visuals' to the HTML file specified by 'webpage'.
     """
     image_dir = webpage.get_image_dir()
+
     short_path = ntpath.basename(image_path[0])
     name = os.path.splitext(short_path)[0]
+
+    # print("path parts", impath.parts)
+    # print("path part last 3 join,", os.path.join(impath.parts[-3], impath.parts[-2], impath.parts[-1]))
+
+    #### cifar10 image translation 폴더 구조 보존 ####
+    ####
+    impath = Path(image_path[0])
+    image_parent_dir = os.path.join(impath.parts[-4], impath.parts[-3], impath.parts[-2])
+    # print("path past last -3, -2 join,", image_parent_dir)
 
     webpage.add_header(name)
     ims, txts, links = [], [], []
@@ -40,7 +50,12 @@ def save_images(webpage, visuals, image_path, aspect_ratio=1.0, width=256, use_w
     for label, im_data in visuals.items():
         im = util.tensor2im(im_data)
         image_name = '%s_%s.png' % (name, label)
-        save_path = os.path.join(image_dir, image_name)
+#        save_path = os.path.join(image_dir, image_name)
+        # print("image save in folders", os.path.join(image_dir, image_parent_dir, image_name))
+        save_path = os.path.join(image_dir, image_parent_dir, image_name)
+
+        if not os.path.exists(os.path.join(image_dir, image_parent_dir)):
+            os.makedirs(os.path.join(image_dir, image_parent_dir)) # for first time
         util.save_image(im, save_path, aspect_ratio=aspect_ratio)
         ims.append(image_name)
         txts.append(label)

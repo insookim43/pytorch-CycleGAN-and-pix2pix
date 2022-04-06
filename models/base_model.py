@@ -211,7 +211,9 @@ class BaseModel(ABC):
                 # if you are using PyTorch newer than 0.4 (e.g., built from
                 # GitHub source), you can remove str() on self.device
                 checkpoint = torch.load(load_path, map_location=str(self.device))
+
                 if 'kernel_width_forward_x' in checkpoint.keys():
+                    ## todo : this loads kernel width 4 times... refactoring is needed.
                     print("kernel width is stored in pretrained model checkpoint. checkpoint.keys() are: ", checkpoint.keys())
                     print("kernel_width = ", checkpoint['kernel_width_forward_x'])
                     state_dict = checkpoint['model_state_dict']
@@ -222,13 +224,11 @@ class BaseModel(ABC):
                     if hasattr(checkpoint['model_state_dict'], '_metadata'):
                         del checkpoint['model_state_dict']._metadata
 
-                elif 'kernel_width_forward_x' not in checkpoint.keys():
+                else:
                     print("pretrained model checkpoint is dictionary. kernel_width is not in checkpoint.keys() are :", checkpoint.keys())
                     state_dict = checkpoint
                     if hasattr(checkpoint, '_metadata'):
                         del checkpoint._metadata
-                else :
-                    print("? checkpoint type is", type(checkpoint))
 
 
                 # patch InstanceNorm checkpoints prior to 0.4

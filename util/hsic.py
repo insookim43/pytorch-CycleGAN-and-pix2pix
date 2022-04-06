@@ -285,8 +285,8 @@ def negative_normalized_HSIC(X, Y, return_width=False, kernel_param_average_meth
 		# ----- -----
 	# print("allocated memory / normalized HSIC width computation", torch.cuda.memory_allocated() / 1024 / 1024)
 
-	print('width_x : ', width_x)
-	print('width_y : ', width_y)
+	# print('width_x : ', width_x)
+	# print('width_y : ', width_y)
 
 	# bone = torch.ones((n, 1)).to(torch.float)
 
@@ -323,8 +323,8 @@ def negative_normalized_HSIC(X, Y, return_width=False, kernel_param_average_meth
 
 
 	normalized_HSIC = HSIC / (torch.sqrt(HSIC_xx+torch.finfo(torch.float32).eps) * torch.sqrt(HSIC_yy+torch.finfo(torch.float32).eps) )
-	print("normalized_HSIC")
-	print(normalized_HSIC)
+	# print("normalized_HSIC")
+	# print(normalized_HSIC)
 
 	del Xmed, G, Q, R, dists, Ymed, H, K, L, Kc, Lc, HSIC, HSIC_xx, HSIC_yy
 	torch.cuda.empty_cache()

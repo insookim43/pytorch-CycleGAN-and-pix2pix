@@ -43,7 +43,7 @@ if __name__ == '__main__':
     for epoch in range(opt.epoch_count, opt.n_epochs + opt.n_epochs_decay + 1):    # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
         print(model.opt.lambda_HSIC, "opt.lambda_HSIC on iter")
         if epoch >= 10:
-            model.opt.lambda_HSIC += 0.01
+            model.opt.lambda_HSIC = 0.01 * epoch # todo : load model's lambda_HSIC
         epoch_start_time = time.time()  # timer for entire epoch
         print(epoch, "epoch")
         iter_data_time = time.time()    # timer for data loading per iteration

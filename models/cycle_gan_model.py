@@ -583,6 +583,7 @@ class CycleGANModel(BaseModel):
             self.epoch_kernel_width_list_backward_y.append(width_y_backward)
 
         elif self.opt.fix_kernel_width in ['True', 'true']:
+            ### in test time, fix_kernel_width is always True. set width_x and width_y as loaded parameter.
             self.loss_HSIC_B = -normalized_HSIC_fixed(self.intermediate_B, self.fake_B, width_x, width_y) * lambda_HSIC
             # print("HSIC forward", self.loss_HSIC_B)
 
