@@ -13,7 +13,7 @@ def sendmessage(content, url='https://discord.com/api/webhooks/93067808307216805
     webhook = DiscordWebhook(url=url, content=content)
     response = webhook.execute()
 
-'''
+
 class CycleGANModel(BaseModel):
     """
     This class implements the CycleGAN model, for learning image-to-image translation without paired data.
@@ -276,9 +276,9 @@ class CycleGANModel(BaseModel):
         self.backward_D_B()      # calculate graidents for D_B
         self.optimizer_D.step()  # update D_A and D_B's weights
 
-'''
-# backup of other dependency preservation model : last of resnet block and last image output
 
+# backup of other dependency preservation model : last of resnet block and last image output
+'''
 class CycleGANModel(BaseModel):
     """
     This class implements the CycleGAN model, for learning image-to-image translation without paired data.
@@ -617,3 +617,4 @@ class CycleGANModel(BaseModel):
         self.backward_D_B()      # calculate graidents for D_B
         self.optimizer_D.step()  # update D_A and D_B's weights
         
+'''

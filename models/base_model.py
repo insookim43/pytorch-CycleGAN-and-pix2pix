@@ -134,8 +134,8 @@ class BaseModel(ABC):
                 if name == 'fake':
 #                    print("is fake...... and shape is ", len(getattr(self,name)), getattr(self,name)[0].shape, getattr(self, name)[1].shape)
 
-#                    visual_ret[name] = getattr(self, name)[2] # [1]
-                    visual_ret[name] = getattr(self, name) [1]
+                    visual_ret[name] = getattr(self, name)[2] # [1]
+#                    visual_ret[name] = getattr(self, name) [1]
 
                 elif name == 'real' :
 #                    print("is real")

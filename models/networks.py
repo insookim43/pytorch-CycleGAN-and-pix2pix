@@ -311,9 +311,11 @@ def cal_gradient_penalty(netD, real_data, fake_data, device, type='mixed', const
     else:
         return 0.0, None
 
-'''
+
 class ResnetGenerator(nn.Module):
-    """Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
+    """
+    backup of downsampling block-last resnetblock feature ResnetGenerator(nn.Module)
+    Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
 
     We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
     """
@@ -443,11 +445,12 @@ class ResnetGenerator(nn.Module):
         #print("out, \n", out)
         return departure_domain_feature_shifted * departure_feature_inv_norm, destination_domain_feature_shifted * destination_feature_inv_norm, out
 
-'''
+
 
 """
 class ResnetGenerator(nn.Module):
-    ###Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
+    ###first resnet block and last resnet block
+    Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
 
     ###We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
     
@@ -579,7 +582,7 @@ class ResnetGenerator(nn.Module):
 
 
 
-
+'''
 ### backup of generator - 9 layer feature and last output image
 class ResnetGenerator(nn.Module):
     """Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
@@ -702,7 +705,7 @@ class ResnetGenerator(nn.Module):
         out = self.latter_model(mid_model_out)
         #print("out, \n", out)
         return BN_mid_model_out * x_inv_norm, out
-
+'''
 
 
 class ResnetBlock(nn.Module):
